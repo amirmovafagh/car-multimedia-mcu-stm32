@@ -1,0 +1,85 @@
+HAL_GPIO_TogglePin(ldgo_GPIO_Port,ldgo_Pin);
+		HAL_GPIO_TogglePin(ldro_GPIO_Port,ldro_Pin);
+
+		
+			if(HAL_GPIO_ReadPin(acci_GPIO_Port,acci_Pin)== GPIO_PIN_RESET)//GPIO_PIN_1
+		{
+    HAL_UART_Transmit(&huart1,"acc on",6,2);
+      HAL_Delay(100);	
+		//	HAL_GPIO_WritePin(GPIOB, out1_Pin|out2_Pin|out3_Pin|out4_Pin |out5_Pin, GPIO_PIN_SET);
+		}	
+		
+
+		if(str[0]== '4')//GPIO_PIN_1
+		{
+			// HAL_UART_Transmit(&huart1,"yyyy",11,2);
+		  	//HAL_GPIO_WritePin( GPIOB, GPIO_PIN_1, 1);
+			frq2=frq2+500000;
+			HAL_UART_Transmit(&huart1,"\n\r INCR FRQ",13,2);
+					if (frq2 >108000000){
+	frq2=108000000;
+						HAL_UART_Transmit(&huart1,"\n\r MAX",8,2);	
+  }
+			tea5767Setfrequency(frq2);
+//HAL_UART_Transmit(&huart1,"bbbb",11,2);
+      HAL_Delay(100);	
+		//	HAL_GPIO_WritePin(GPIOB, out1_Pin|out2_Pin|out3_Pin|out4_Pin |out5_Pin, GPIO_PIN_SET);
+		}
+
+		if(str[0]== '5')//GPIO_PIN_1
+		{
+			// HAL_UART_Transmit(&huart1,"yyyy",11,2);
+		  	//HAL_GPIO_WritePin( GPIOB, GPIO_PIN_1, 1);
+			frq2=frq2-500000;
+			HAL_UART_Transmit(&huart1,"\n\r DECR FRQ",13,2);
+					if (frq2 <88000000){
+	frq2=88000000;
+						HAL_UART_Transmit(&huart1,"\n\r min",8,2);	
+  }
+			tea5767Setfrequency(frq2);
+//HAL_UART_Transmit(&huart1,"bbbb",11,2);
+      HAL_Delay(100);	
+		//	HAL_GPIO_WritePin(GPIOB, out1_Pin|out2_Pin|out3_Pin|out4_Pin |out5_Pin, GPIO_PIN_SET);
+		}		
+		
+	switch( str[0]){
+		case '1'	:
+			buffer[0]=buffer[0]-1;		
+		 HAL_I2C_Master_Transmit(&hi2c1,0x44<<1,buffer,7,2);
+		HAL_Delay(10);
+		HAL_UART_Transmit(&huart1,"decr vol",8,10);		
+		HAL_Delay(10);
+		 break;
+		case '2'	:
+			buffer[0]=buffer[0]+1;		
+		 HAL_I2C_Master_Transmit(&hi2c1,0x44<<1,buffer,7,2);
+		HAL_Delay(10);
+		HAL_UART_Transmit(&huart1,"incr vol",8,10);		
+		HAL_Delay(10);
+		 break;
+		case '7'	:
+		buffer[5]=64;	
+		 HAL_I2C_Master_Transmit(&hi2c1,0x44<<1,buffer,7,2);
+		HAL_Delay(10);
+		HAL_UART_Transmit(&huart1,"\n\r AUX",8,10);		
+		HAL_Delay(10);
+		 break;
+		case '8'	:
+		buffer[5]=65;	
+		 HAL_I2C_Master_Transmit(&hi2c1,0x44<<1,buffer,7,2);
+		HAL_Delay(10);
+		HAL_UART_Transmit(&huart1,"\n\r pine",9,10);		
+		HAL_Delay(10);
+		 break;
+		case '9'	:
+		buffer[5]=66;	
+		 HAL_I2C_Master_Transmit(&hi2c1,0x44<<1,buffer,7,2);
+		HAL_Delay(10);
+		HAL_UART_Transmit(&huart1,"\n\r RADIO",10,10);		
+		HAL_Delay(10);		
+		
+   break;
+	}	
+	str[0]=0;
+	HAL_Delay(10);
+	
