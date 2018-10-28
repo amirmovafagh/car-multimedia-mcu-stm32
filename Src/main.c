@@ -52,6 +52,8 @@ I2C_HandleTypeDef hi2c1;
 
 IWDG_HandleTypeDef hiwdg;
 
+TIM_HandleTypeDef htim2;
+
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 
@@ -114,7 +116,11 @@ static void MX_I2C1_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_IWDG_Init(void);
+static void MX_TIM2_Init(void);
 static void MX_NVIC_Init(void);
+
+void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
+                                
 
 /* USER CODE BEGIN PFP */
 void SystemClock_Config(void);
@@ -722,12 +728,16 @@ HAL_GPIO_WritePin( GPIOB, GPIO_PIN_14, 1);
   MX_USART2_UART_Init();
   MX_ADC1_Init();
   MX_IWDG_Init();
+  MX_TIM2_Init();
 
   /* Initialize interrupts */
   MX_NVIC_Init();
   /* USER CODE BEGIN 2 */
 	HAL_ADC_Start_DMA(&hadc1, ADC_buffer, 2);
 	__HAL_IWDG_START(&hiwdg);
+	
+	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1); //start timer2 channel_1 as pwm
+	TIM1->CCR1 = 65535;//pwm value from 0 to 65535
 
 //__HAL_UART_ENABLE_IT(&huart1,UART_IT_TC);
  __HAL_UART_ENABLE_IT(&huart1,UART_IT_RXNE);//ssssssssssssssssssssssssssssssssssssssssssssssssssss
@@ -795,7 +805,7 @@ HAL_GPIO_WritePin(enpo_GPIO_Port,enpo_Pin, 0);
 		//temperature = ((temp_val-1.43)/4.3)+25;
 		
 		acciPinState = HAL_GPIO_ReadPin(GPIOA,acci_Pin);
-	/*if(acciPinState == GPIO_PIN_RESET)//GPIO_PIN_1
+	if(acciPinState == GPIO_PIN_RESET)//GPIO_PIN_1
 		{
 				HAL_GPIO_WritePin(enpo_GPIO_Port,enpo_Pin, 0);
 	 HAL_GPIO_WritePin(enho_GPIO_Port,enho_Pin, 0);		
@@ -809,7 +819,7 @@ HAL_GPIO_WritePin(stbo_GPIO_Port,stbo_Pin, 0);
 	 HAL_GPIO_WritePin(enho_GPIO_Port,enho_Pin, 1);		
 	HAL_GPIO_WritePin(muto_GPIO_Port,muto_Pin, 1);		
 	HAL_GPIO_WritePin(stbo_GPIO_Port,stbo_Pin, 1);	
-	}*/
+	}
 	
 	rcaiPinState = HAL_GPIO_ReadPin(GPIOA,rcai_Pin);
 	if(rcaiPinState == GPIO_PIN_RESET)
@@ -972,6 +982,56 @@ static void MX_IWDG_Init(void)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
+
+}
+
+/* TIM2 init function */
+static void MX_TIM2_Init(void)
+{
+
+  TIM_ClockConfigTypeDef sClockSourceConfig;
+  TIM_MasterConfigTypeDef sMasterConfig;
+  TIM_OC_InitTypeDef sConfigOC;
+
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 0;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 0;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+  if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+  HAL_TIM_MspPostInit(&htim2);
 
 }
 
