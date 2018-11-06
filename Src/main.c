@@ -142,6 +142,7 @@ void checkAudio(void);
 void checkRadio(void);
 void bluetoothSettings(void);
 void bluetoothCall(void);
+void bluetoothMusic(void);
 void checkBluetooth(void);
 int arrayToInt(uint8_t mArr[]);
 bool checkDeviceI2cConnection(uint16_t DevAddress);
@@ -156,7 +157,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     
     if(rx_index==0 || rx_index==-1)
     {
-      for(int i=0; i<20; i++)
+      for(int i=0; i<22; i++)
       {
         rx_buffer[i]=0;
         //type[i] = 0;
@@ -207,37 +208,10 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
       rx_index = 0;
 
     }
-    //HAL_UART_Receive_IT (&huart1, &rx_data, 1); // Receive data (one character only)
+    
     
     
   }
-	
-//	HAL_UART_Receive(&huart1,(uint8_t*) ch,1,1000);
-	
-//	str[0]=ch[0];
-//	str[1]=ch[1];
-	//if(buffercmp(Receive_buffer,"led"==0xff){
-	//if(buffercmp(Receive_buffer,"led"==0xff){
-	//HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_1);
-
-		
-
-//	HAL_UART_Transmit(&huart1,(uint8_t*) ch,1,10);
-	//ch[0]=0;
-	//}
-	//HAL_UART_Receive_IT(&huart1,(unsigned char*)Receive_buffer,3);
-	
-  /* Prevent unused argument(s) compilation warning */
- // UNUSED(huart);
-  /* NOTE: This function should not be modified, when the callback is needed,
-           the HAL_UART_RxHalfCpltCallback can be implemented in the user file
-   */
-	 
-	 
-//	 	HAL_UART_Receive(&huart2,(uint8_t*) ch2,1,10);
-	
-
-//	HAL_UART_Transmit(&huart2,(uint8_t*) ch2,10,10);
 	
 }
 
@@ -250,7 +224,7 @@ void HAL_UART_RxCpltCallback2(UART_HandleTypeDef *huart)
 			
 			if(rx2_index==0)
 			{
-				for(int i=0; i<20; i++)
+				for(int i=0; i<22; i++)
 				{
 					rx2_buffer[i]=0;
 					
@@ -346,7 +320,7 @@ void checkBluetooth(){
 	}else if (areEqual(secondType, call, 0, 3)){
 		bluetoothCall();
 	}else{
-		//bluetoothMusic();
+		bluetoothMusic();
 	}
 	
 	
@@ -359,14 +333,18 @@ void bluetoothCall(){
 	static uint8_t endCall[3]= {'e','n','d'};
 	static uint8_t redial[3]= {'r','d','l'};
 	static uint8_t checkStatus[3]= {'c','h','k'};
+	static uint8_t releaseHeldCall[3] = {'r', 'h', 'c'};
+	static uint8_t releaseActiveCall[3] = {'r', 'a', 'c'};
+	static uint8_t holdActiveCall[3] = {'h', 'a', 'c'};
+	static uint8_t audioTransfer[3] = {'a', 't', 'r'};
 	uint8_t secondType[14];
 	
 	for (int i=8; i<12; i++){
 		secondType[i-8] = rx_buffer[i];
 	}
 	
-	if(areEqual(answer, secondType, 0, 3)){						//answer incoming call
-		HAL_UART_Transmit(&huart2, "AT#CE\r", 6,100);
+	if(areEqual(checkStatus, secondType, 0, 3)){						//check Status call
+		HAL_UART_Transmit(&huart2, "AT#CY\r", 6,100);
 		return;
 		
 	}else if(areEqual(reject, secondType, 0, 3)){			//reject
@@ -377,15 +355,32 @@ void bluetoothCall(){
 		HAL_UART_Transmit(&huart2, "AT#CG\r", 6,100);
 		return;
 		
-	}else if(areEqual(checkStatus, secondType, 0, 3)){		//end call
-		HAL_UART_Transmit(&huart2, "AT#CY\r", 6,100);
+	}else if(areEqual(answer, secondType, 0, 3)){		//answer incoming call
+		HAL_UART_Transmit(&huart2, "AT#CE\r", 6,100);
 		return;
 		
 	}else if(areEqual(redial, secondType, 0, 3)){			//redial
 		HAL_UART_Transmit(&huart2, "AT#CH\r", 6,100);
 		return;
 		
-	}else{//outgoing call
+	}
+	else if(areEqual(audioTransfer, secondType, 0, 3)){			//Audio transfer
+		HAL_UART_Transmit(&huart2, "AT#CO\r", 6,100);
+		return;
+	}
+	else if(areEqual(releaseHeldCall, secondType, 0,3)){  //release held call, reject waiting call
+		HAL_UART_Transmit(&huart2, "AT#CQ\r", 6,100);
+		return;
+	}
+	else if(areEqual(releaseActiveCall, secondType, 0,3)){  //release active call, accept other call
+		HAL_UART_Transmit(&huart2, "AT#CR\r", 6,100);
+		return;
+	}
+	else if(areEqual(holdActiveCall, secondType, 0,3)){  //hold active call, accept other call
+		HAL_UART_Transmit(&huart2, "AT#CS\r", 6,100);
+		return;
+	}
+	else{//outgoing call
 		
 		for (int i=8; i<23; i++){
 			secondType[i-8] = rx_buffer[i];
@@ -401,7 +396,52 @@ void bluetoothCall(){
 	
 }
 
-
+void bluetoothMusic(){
+	{
+	static uint8_t decreaseVolume[3]= {'v','d','n'};
+	static uint8_t increaseVolume[3]= {'v','u','p'};
+	static uint8_t muteMic[3]= {'m','u','t'};
+	static uint8_t playPause[3] = {'p', 'p', 'p'};
+	static uint8_t stop[3] = {'s', 't', 'p'};
+	static uint8_t forward[3]= {'f','w','d'};
+	static uint8_t backward[3]= {'b','w','d'};
+	uint8_t secondType[3];
+	
+	for (int i=8; i<12; i++){
+		secondType[i-8] = rx_buffer[i];
+	}
+	
+	if(areEqual(decreaseVolume, secondType, 0, 3)){ //volume down
+		HAL_UART_Transmit(&huart2, "AT#VD\r", 6,100);
+		return;
+	}
+	else if(areEqual(increaseVolume, secondType, 0, 3)){  //volume Up
+		HAL_UART_Transmit(&huart2, "AT#VU\r", 6,100);
+		return;
+	}
+	else if(areEqual(muteMic, secondType, 0, 3)){	//TOGGLE MIC
+		HAL_UART_Transmit(&huart2, "AT#CM\r", 6,100);
+		return;
+	}
+	else if(areEqual(playPause, secondType, 0, 3)){  //play , pause
+		HAL_UART_Transmit(&huart2, "AT#MA\r", 6,100);
+		return;
+	}
+	else if(areEqual(stop, secondType, 0, 3)){  //stop
+		HAL_UART_Transmit(&huart2, "AT#MC\r", 6,100);
+		return;
+	}
+	else if(areEqual(forward, secondType, 0, 3)){  //forward
+		HAL_UART_Transmit(&huart2, "AT#MD\r", 6,100);
+		return;
+	}
+	else if(areEqual(backward, secondType, 0, 3)){ //backward
+		HAL_UART_Transmit(&huart2, "AT#ME\r", 6,100);
+		return;
+	}
+	
+	}
+}
 void bluetoothSettings(){
 	static uint8_t enterPairing[3]= {'p','o','n'}; 
 	static uint8_t cancelPairing[3]= {'p','o','f'}; 
@@ -458,7 +498,8 @@ bool areEqual(uint8_t arr1[], uint8_t arr2[], int i, int n)
     // Linearly compare elements
     for (i; i<n; i++){
          if (arr1[i] != arr2[i]){
-					return false;
+						//HAL_IWDG_Refresh(&hiwdg);
+						return false;
 				 }
 			 }         
     // If all elements were same.
@@ -511,6 +552,7 @@ void checkAudio(){                         //Audio Module settings
 		static uint8_t vol_bas[3] ={'b','a','s'};
 		static uint8_t vol_treble[3] ={'t','b','l'};
 		static uint8_t vol_loud[3] ={'l','o','d'};
+		static uint8_t brightness[3] ={'b','r','g'};
 		uint8_t secondType[4];
 		
 		for(int i=4; i<7; i++){
@@ -532,40 +574,54 @@ void checkAudio(){                         //Audio Module settings
 				//HAL_GPIO_WritePin(muto_GPIO_Port,stbo_Pin, 0);	 
 			 
 			}
-		}else if(areEqual(secondType, vol_lf, 0, 3)){ //speaker left front
+			return;
+		}else if (areEqual(secondType, brightness, 0, 3)){ //Brightness
 			for(int i=8; i<12; i++){
 				secondType[i-8]=rx_buffer[i];
 			}
-					buffer[1]= arrayToInt(secondType);
-    			HAL_I2C_Master_Transmit(&hi2c1,0x44<<1,buffer,7,2);
+			int i= arrayToInt(secondType);
+    	TIM2->CCR1 = 70 + i;
+			return;
 			
-		}else if(areEqual(secondType, vol_rf, 0, 3)){ //speaker right front
+		}
+		else if(areEqual(secondType, vol_lf, 0, 3)){ //speaker left front
 			for(int i=8; i<12; i++){
 				secondType[i-8]=rx_buffer[i];
 			}
-					buffer[2]= arrayToInt(secondType);
-    			HAL_I2C_Master_Transmit(&hi2c1,0x44<<1,buffer,7,2);	
+			buffer[1]= arrayToInt(secondType);
+			HAL_I2C_Master_Transmit(&hi2c1,0x44<<1,buffer,7,2);
+			return;
 			
+		}
+		else if(areEqual(secondType, vol_rf, 0, 3)){ //speaker right front
+			for(int i=8; i<12; i++){
+				secondType[i-8]=rx_buffer[i];
+			}
+			buffer[2]= arrayToInt(secondType);
+			HAL_I2C_Master_Transmit(&hi2c1,0x44<<1,buffer,7,2);	
+			return;
 		}else if(areEqual(secondType, vol_lr, 0, 3)){ //speaker left rear
 			for(int i=8; i<12; i++){
 				secondType[i-8]=rx_buffer[i];
 			}
-					buffer[3]= arrayToInt(secondType);
-    			HAL_I2C_Master_Transmit(&hi2c1,0x44<<1,buffer,7,2);
-			
+			buffer[3]= arrayToInt(secondType);
+    	HAL_I2C_Master_Transmit(&hi2c1,0x44<<1,buffer,7,2);
+			return;
 		}else if (areEqual(secondType, vol_rr, 0, 3)){ //speaker right rear
 			for(int i=8; i<12; i++){
 				secondType[i-8]=rx_buffer[i];
 			}
-					buffer[4]= arrayToInt(secondType);
-    			HAL_I2C_Master_Transmit(&hi2c1,0x44<<1,buffer,7,2);
+			buffer[4]= arrayToInt(secondType);
+    	HAL_I2C_Master_Transmit(&hi2c1,0x44<<1,buffer,7,2);
+			return;
 			
 		}else if (areEqual(secondType, vol_bas, 0, 3)){ //change bas
 			for(int i=8; i<12; i++){
 				secondType[i-8]=rx_buffer[i];
 			}
-					buffer[6]= arrayToInt(secondType);
-    			HAL_I2C_Master_Transmit(&hi2c1,0x44<<1,buffer,7,2);
+			buffer[6]= arrayToInt(secondType);
+    	HAL_I2C_Master_Transmit(&hi2c1,0x44<<1,buffer,7,2);
+			return;
 			
 		}else if (areEqual(secondType, vol_loud, 0, 3)){ //change Loud
 			for(int i=8; i<12; i++){
@@ -573,14 +629,16 @@ void checkAudio(){                         //Audio Module settings
 			}
 			//		buffer[0]= arrayToInt(secondType);
     		//	HAL_I2C_Master_Transmit(&hi2c1,0x44<<1,buffer,7,2);
-			
+						return;
+
 		}else { 																			 //change treble
 			for(int i=8; i<12; i++){
 				secondType[i-8]=rx_buffer[i];
 			}
-							buffer[7]= arrayToInt(secondType);
-    			HAL_I2C_Master_Transmit(&hi2c1,0x44<<1,buffer,7,2);
-			
+			buffer[7]= arrayToInt(secondType);
+			HAL_I2C_Master_Transmit(&hi2c1,0x44<<1,buffer,7,2);
+			return;
+
 		}
 	}else HAL_UART_Transmit (&huart1, "audProb", 7,10);
   
@@ -737,7 +795,7 @@ HAL_GPIO_WritePin( GPIOB, GPIO_PIN_14, 1);
 	__HAL_IWDG_START(&hiwdg);
 	
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1); //start timer2 channel_1 as pwm
-	TIM1->CCR1 = 65535;//pwm value from 0 to 65535
+	TIM2->CCR1 = 130;//pwm value from 0 to 65535
 
 //__HAL_UART_ENABLE_IT(&huart1,UART_IT_TC);
  __HAL_UART_ENABLE_IT(&huart1,UART_IT_RXNE);//ssssssssssssssssssssssssssssssssssssssssssssssssssss
@@ -804,7 +862,7 @@ HAL_GPIO_WritePin(enpo_GPIO_Port,enpo_Pin, 0);
 		//HAL_ADC_Stop(&hadc2);
 		//temperature = ((temp_val-1.43)/4.3)+25;
 		
-		acciPinState = HAL_GPIO_ReadPin(GPIOA,acci_Pin);
+	/*	acciPinState = HAL_GPIO_ReadPin(GPIOA,acci_Pin);
 	if(acciPinState == GPIO_PIN_RESET)//GPIO_PIN_1
 		{
 				HAL_GPIO_WritePin(enpo_GPIO_Port,enpo_Pin, 0);
@@ -825,9 +883,12 @@ HAL_GPIO_WritePin(stbo_GPIO_Port,stbo_Pin, 0);
 	if(rcaiPinState == GPIO_PIN_RESET)
 	{
 		
-	}
+	}*/
 
 	
+
+
+
 //
 	//HAL_GPIO_TogglePin(ldgo_GPIO_Port,ldgo_Pin);
 //		HAL_GPIO_TogglePin(ldro_GPIO_Port,ldro_Pin);	
@@ -994,9 +1055,9 @@ static void MX_TIM2_Init(void)
   TIM_OC_InitTypeDef sConfigOC;
 
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 0;
+  htim2.Init.Prescaler = 69;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 0;
+  htim2.Init.Period = 110;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -1024,7 +1085,7 @@ static void MX_TIM2_Init(void)
 
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
   sConfigOC.Pulse = 0;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_LOW;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
   {
