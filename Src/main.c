@@ -99,6 +99,10 @@ uint8_t audio[3]={'a','u','d'};
 uint8_t radio[3]={'r','a','d'};
 uint8_t bluetooth[3]={'b','l','t'};
 uint8_t rspnsEnterPairing[2]= {'I','I'};
+uint8_t rspnsMusicStart[2]= {'M','B'};
+uint8_t rspnsMusicPause[2]= {'M','P'};
+uint8_t rspnsMusicStop[2]= {'M','A'};
+uint8_t rspnsMusicResume[2]= {'M','R'};
 uint8_t rspnsConnectToDevice[2]= {'I','V'};
 uint8_t rspnsOutgoingCall[2]= {'I','R'};
 
@@ -253,18 +257,26 @@ void HAL_UART_RxCpltCallback2(UART_HandleTypeDef *huart)
 				if(rx2_index>=1){
 					if(areEqual(rx2_buffer, rspnsReadyStatus, 0, 3)){
 						HAL_UART_Transmit(&huart1, rspnsReadyStatus, 3,10);
+						rx2_index = 0;
+						return;
 					}
 					
 					if(areEqual(rx2_buffer, rspnsConnectingStatus, 0, 3)){
 						HAL_UART_Transmit(&huart1, rspnsConnectingStatus, 3,10);
+						rx2_index = 0;
+						return;
 					}
 					
 					if(areEqual(rx2_buffer, rspnsConnectedStatus, 0, 3)){
 						HAL_UART_Transmit(&huart1, rspnsConnectedStatus, 3,10);
+						rx2_index = 0;
+						return;
 					}
 					
 					if(areEqual(rx2_buffer, rspnsInCallStatus, 0, 3)){
 						HAL_UART_Transmit(&huart1, rspnsInCallStatus, 3,10);
+						rx2_index = 0;
+						return;
 						
 						
 					}
@@ -273,23 +285,57 @@ void HAL_UART_RxCpltCallback2(UART_HandleTypeDef *huart)
 					
 					if(areEqual(rx2_buffer, rspnsOnCallStatus, 0, 3)){
 						HAL_UART_Transmit(&huart1, rspnsOnCallStatus, 3,10);
+						rx2_index = 0;
+						return;
 					}
 					
 					
 					if(areEqual(rx2_buffer, rspnsOutCallStatus, 0, 3)){
 						HAL_UART_Transmit(&huart1, rspnsOutCallStatus, 3,10);
+						rx2_index = 0;
+						return;
 					}
 					
 					if(areEqual(rx2_buffer, rspnsOutgoingCall, 0, 2)){
 						HAL_UART_Transmit(&huart1, rspnsOutgoingCall, 2,10);
+						rx2_index = 0;
+						return;
+					}
+					
+					if(areEqual(rx2_buffer, rspnsMusicStart, 0, 2)){
+						HAL_UART_Transmit(&huart1, rspnsMusicStart, 2,10);
+						rx2_index = 0;
+						return;
+					}
+					
+					if(areEqual(rx2_buffer, rspnsMusicResume, 0, 2)){
+						HAL_UART_Transmit(&huart1, rspnsMusicResume, 2,10);
+						rx2_index = 0;
+						return;
+					}
+					
+					if(areEqual(rx2_buffer, rspnsMusicPause, 0, 2)){
+						HAL_UART_Transmit(&huart1, rspnsMusicPause, 2,10);
+						rx2_index = 0;
+						return;
+					}
+					
+					if(areEqual(rx2_buffer, rspnsMusicStop, 0, 2)){
+						HAL_UART_Transmit(&huart1, rspnsMusicStop, 2,10);
+						rx2_index = 0;
+						return;
 					}
 					
 					if(areEqual(rx2_buffer, rspnsEnterPairing, 0, 2)){
 						HAL_UART_Transmit(&huart1, rspnsEnterPairing, 2,10);
+						rx2_index = 0;
+						return;
 					}
 					
 					if(areEqual(rx2_buffer, rspnsConnectToDevice, 0, 2)){
 						HAL_UART_Transmit(&huart1, rspnsConnectToDevice, 2,10);
+						rx2_index = 0;
+						return;
 					}
 				}
 				
