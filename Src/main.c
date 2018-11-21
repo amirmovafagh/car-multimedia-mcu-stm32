@@ -68,6 +68,7 @@ HAL_StatusTypeDef readAdc;
 char ch[20];//usart
 char ch2[20];//usart
 char str[20];//uint8_t str[20];
+uint8_t testBuffer[5]; //just for test
 uint8_t buffer[8]={0x00, 0x00, 0x00, 0x63, 0x04, 0x23, 0x12, 0x15}; 
 
 uint8_t bt[5];                                               //buffer for tea5767
@@ -183,22 +184,28 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
       if(areEqual(mode, rx_buffer,0,3)){
         //HAL_UART_Transmit (&huart1, rx_buffer, rx_index,100);
         checkMode();
+				rx_index = 0;
+				return;
         
       }
       
       //AUDIO SECTION
       if(areEqual(audio, rx_buffer,0 , 3)){
         checkAudio();
+				rx_index = 0;
+				return;
       }else if(areEqual(radio, rx_buffer,0 , 3)){  //Radio SECTION
 				checkRadio();
+				rx_index = 0;
+				return;
       }
       
       //BLUeTOOTH SECTION
 			
       if(areEqual(bluetooth, rx_buffer,0 , 3)){
-				
 				checkBluetooth();
-				
+				rx_index = 0;
+				return;
       }
       
       
@@ -888,9 +895,9 @@ HAL_GPIO_WritePin(enpo_GPIO_Port,enpo_Pin, 0);
 		//HAL_Delay(5000); //check watchDog
 		/*=== start adc ===*/
 		//HAL_ADC_Start(&hadc1);         
-		
-		
-		
+		HAL_Delay(10);
+		HAL_I2C_Master_Receive(&hi2c1,0xE0<<1, testBuffer,5,100);
+		HAL_Delay(10);
 
 		//readAdc = HAL_ADC_PollForConversion(&hadc1,100);
 		 
@@ -1275,8 +1282,8 @@ void tea5767Setfrequency( uint32_t frequency )
    bt[1]=(pllValue & 0xFF);
 		// bt[0]=0x2c;
    // bt[1]=0x37;
-    bt[2]=16;
-    bt[3]=18;
+    bt[2]=176;
+    bt[3]=16;
     bt[4]=0;
 		
 		senddata[0]= bt[0];
