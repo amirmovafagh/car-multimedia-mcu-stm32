@@ -485,6 +485,31 @@
               <FileType>1</FileType>
               <FilePath>../Src/stm32f1xx_hal_msp.c</FilePath>
             </File>
+            <File>
+              <FileName>config.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Src\config.h</FilePath>
+            </File>
+            <File>
+              <FileName>bluetooth.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\bluetooth.c</FilePath>
+            </File>
+            <File>
+              <FileName>radio.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\radio.c</FilePath>
+            </File>
+            <File>
+              <FileName>soundModule.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\soundModule.c</FilePath>
+            </File>
+            <File>
+              <FileName>controlWheel.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\controlWheel.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
