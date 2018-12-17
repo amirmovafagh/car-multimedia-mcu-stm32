@@ -23,7 +23,7 @@ extern UART_HandleTypeDef huart2;
 extern UART_HandleTypeDef huart1;
 
 void HAL_UART_RxCpltCallback2(UART_HandleTypeDef *huart){
-		HAL_UART_Receive (&huart2, &rx2_data, 1,10);
+		HAL_UART_Receive (&huart2, &rx2_data, 1, uart_timeout);
 		if(huart->Instance == USART2)
 		{    
 			
@@ -40,7 +40,7 @@ void HAL_UART_RxCpltCallback2(UART_HandleTypeDef *huart){
 				//if the charcter received is other than'enter' ascii 0x3f, save the data in buffer
 			if (rx2_data != 0x0A )
 			{
-				//HAL_UART_Transmit(&huart1, &rx2_buffer[0,1,2], 20, 100);
+				
 				rx2_buffer[rx2_index++] = rx2_data;
 
 			}
@@ -52,30 +52,30 @@ void HAL_UART_RxCpltCallback2(UART_HandleTypeDef *huart){
 						|| rx2_buffer[0] == 0x36  || rx2_buffer[0] == 0x37  || rx2_buffer[0] == 0x38
 						|| rx2_buffer[0] == 0x39){
 						
-						HAL_UART_Transmit(&huart1, rx2_buffer, 22,10);
+						HAL_UART_Transmit(&huart1, rx2_buffer, 22, uart_timeout);
 						
 					}
 				if(rx2_index>=1){
 					if(areEqual(rx2_buffer, rspnsReadyStatus, 0, 3)){
-						HAL_UART_Transmit(&huart1, rspnsReadyStatus, 3,10);
+						HAL_UART_Transmit(&huart1, rspnsReadyStatus, 3, uart_timeout);
 						rx2_index = 0;
 						return;
 					}
 					
 					if(areEqual(rx2_buffer, rspnsConnectingStatus, 0, 3)){
-						HAL_UART_Transmit(&huart1, rspnsConnectingStatus, 3,10);
+						HAL_UART_Transmit(&huart1, rspnsConnectingStatus, 3, uart_timeout);
 						rx2_index = 0;
 						return;
 					}
 					
 					if(areEqual(rx2_buffer, rspnsConnectedStatus, 0, 3)){
-						HAL_UART_Transmit(&huart1, rspnsConnectedStatus, 3,10);
+						HAL_UART_Transmit(&huart1, rspnsConnectedStatus, 3, uart_timeout);
 						rx2_index = 0;
 						return;
 					}
 					
 					if(areEqual(rx2_buffer, rspnsInCallStatus, 0, 3)){
-						HAL_UART_Transmit(&huart1, rspnsInCallStatus, 3,10);
+						HAL_UART_Transmit(&huart1, rspnsInCallStatus, 3, uart_timeout);
 						rx2_index = 0;
 						return;
 						
@@ -85,56 +85,56 @@ void HAL_UART_RxCpltCallback2(UART_HandleTypeDef *huart){
 					
 					
 					if(areEqual(rx2_buffer, rspnsOnCallStatus, 0, 3)){
-						HAL_UART_Transmit(&huart1, rspnsOnCallStatus, 3,10);
+						HAL_UART_Transmit(&huart1, rspnsOnCallStatus, 3, uart_timeout);
 						rx2_index = 0;
 						return;
 					}
 					
 					
 					if(areEqual(rx2_buffer, rspnsOutCallStatus, 0, 3)){
-						HAL_UART_Transmit(&huart1, rspnsOutCallStatus, 3,10);
+						HAL_UART_Transmit(&huart1, rspnsOutCallStatus, 3, uart_timeout);
 						rx2_index = 0;
 						return;
 					}
 					
 					if(areEqual(rx2_buffer, rspnsOutgoingCall, 0, 2)){
-						HAL_UART_Transmit(&huart1, rspnsOutgoingCall, 2,10);
+						HAL_UART_Transmit(&huart1, rspnsOutgoingCall, 2, uart_timeout);
 						rx2_index = 0;
 						return;
 					}
 					
 					if(areEqual(rx2_buffer, rspnsMusicStart, 0, 2)){
-						HAL_UART_Transmit(&huart1, rspnsMusicStart, 2,10);
+						HAL_UART_Transmit(&huart1, rspnsMusicStart, 2, uart_timeout);
 						rx2_index = 0;
 						return;
 					}
 					
 					if(areEqual(rx2_buffer, rspnsMusicResume, 0, 2)){
-						HAL_UART_Transmit(&huart1, rspnsMusicResume, 2,10);
+						HAL_UART_Transmit(&huart1, rspnsMusicResume, 2, uart_timeout);
 						rx2_index = 0;
 						return;
 					}
 					
 					if(areEqual(rx2_buffer, rspnsMusicPause, 0, 2)){
-						HAL_UART_Transmit(&huart1, rspnsMusicPause, 2,10);
+						HAL_UART_Transmit(&huart1, rspnsMusicPause, 2, uart_timeout);
 						rx2_index = 0;
 						return;
 					}
 					
 					if(areEqual(rx2_buffer, rspnsMusicStop, 0, 2)){
-						HAL_UART_Transmit(&huart1, rspnsMusicStop, 2,10);
+						HAL_UART_Transmit(&huart1, rspnsMusicStop, 2, uart_timeout);
 						rx2_index = 0;
 						return;
 					}
 					
 					if(areEqual(rx2_buffer, rspnsEnterPairing, 0, 2)){
-						HAL_UART_Transmit(&huart1, rspnsEnterPairing, 2,10);
+						HAL_UART_Transmit(&huart1, rspnsEnterPairing, 2, uart_timeout);
 						rx2_index = 0;
 						return;
 					}
 					
 					if(areEqual(rx2_buffer, rspnsConnectToDevice, 0, 2)){
-						HAL_UART_Transmit(&huart1, rspnsConnectToDevice, 2,10);
+						HAL_UART_Transmit(&huart1, rspnsConnectToDevice, 2, uart_timeout);
 						rx2_index = 0;
 						return;
 					}
@@ -187,40 +187,40 @@ void bluetoothCall(){
 	}
 	
 	if(areEqual(checkStatus, secondType, 0, 3)){						//check Status call
-		HAL_UART_Transmit(&huart2, "AT#CY\r", 6,100);
+		HAL_UART_Transmit(&huart2, "AT#CY\r", 6, uart_timeout);
 		return;
 		
 	}else if(areEqual(reject, secondType, 0, 3)){			//reject
-		HAL_UART_Transmit(&huart2, "AT#CF\r", 6,100);
+		HAL_UART_Transmit(&huart2, "AT#CF\r", 6, uart_timeout);
 		return;
 		
 	}else if(areEqual(endCall, secondType, 0, 3)){		//end call
-		HAL_UART_Transmit(&huart2, "AT#CG\r", 6,100);
+		HAL_UART_Transmit(&huart2, "AT#CG\r", 6, uart_timeout);
 		return;
 		
 	}else if(areEqual(answer, secondType, 0, 3)){		//answer incoming call
-		HAL_UART_Transmit(&huart2, "AT#CE\r", 6,100);
+		HAL_UART_Transmit(&huart2, "AT#CE\r", 6, uart_timeout);
 		return;
 		
 	}else if(areEqual(redial, secondType, 0, 3)){			//redial
-		HAL_UART_Transmit(&huart2, "AT#CH\r", 6,100);
+		HAL_UART_Transmit(&huart2, "AT#CH\r", 6, uart_timeout);
 		return;
 		
 	}
 	else if(areEqual(audioTransfer, secondType, 0, 3)){			//Audio transfer
-		HAL_UART_Transmit(&huart2, "AT#CO\r", 6,100);
+		HAL_UART_Transmit(&huart2, "AT#CO\r", 6, uart_timeout);
 		return;
 	}
 	else if(areEqual(releaseHeldCall, secondType, 0,3)){  //release held call, reject waiting call
-		HAL_UART_Transmit(&huart2, "AT#CQ\r", 6,100);
+		HAL_UART_Transmit(&huart2, "AT#CQ\r", 6, uart_timeout);
 		return;
 	}
 	else if(areEqual(releaseActiveCall, secondType, 0,3)){  //release active call, accept other call
-		HAL_UART_Transmit(&huart2, "AT#CR\r", 6,100);
+		HAL_UART_Transmit(&huart2, "AT#CR\r", 6, uart_timeout);
 		return;
 	}
 	else if(areEqual(holdActiveCall, secondType, 0,3)){  //hold active call, accept other call
-		HAL_UART_Transmit(&huart2, "AT#CS\r", 6,100);
+		HAL_UART_Transmit(&huart2, "AT#CS\r", 6, uart_timeout);
 		return;
 	}
 	else{//outgoing call
@@ -229,9 +229,9 @@ void bluetoothCall(){
 			secondType[i-8] = rx_buffer[i];
 			
 		}
-		HAL_UART_Transmit(&huart2, "AT#CW", 5,100);
-		HAL_UART_Transmit(&huart2, secondType, 14,100);
-		HAL_UART_Transmit(&huart2, "\r", 1,100);
+		HAL_UART_Transmit(&huart2, "AT#CW", 5, uart_timeout);
+		HAL_UART_Transmit(&huart2, secondType, 14, uart_timeout );
+		HAL_UART_Transmit(&huart2, "\r", 1, uart_timeout);
 		
 		return;
 	}
@@ -255,31 +255,31 @@ void bluetoothMusic(){
 	}
 	
 	if(areEqual(decreaseVolume, secondType, 0, 3)){ //volume down
-		HAL_UART_Transmit(&huart2, "AT#VD\r", 6,100);
+		HAL_UART_Transmit(&huart2, "AT#VD\r", 6, uart_timeout);
 		return;
 	}
 	else if(areEqual(increaseVolume, secondType, 0, 3)){  //volume Up
-		HAL_UART_Transmit(&huart2, "AT#VU\r", 6,100);
+		HAL_UART_Transmit(&huart2, "AT#VU\r", 6, uart_timeout);
 		return;
 	}
 	else if(areEqual(muteMic, secondType, 0, 3)){	//TOGGLE MIC
-		HAL_UART_Transmit(&huart2, "AT#CM\r", 6,100);
+		HAL_UART_Transmit(&huart2, "AT#CM\r", 6, uart_timeout);
 		return;
 	}
 	else if(areEqual(playPause, secondType, 0, 3)){  //play , pause
-		HAL_UART_Transmit(&huart2, "AT#MA\r", 6,100);
+		HAL_UART_Transmit(&huart2, "AT#MA\r", 6, uart_timeout);
 		return;
 	}
 	else if(areEqual(stop, secondType, 0, 3)){  //stop
-		HAL_UART_Transmit(&huart2, "AT#MC\r", 6,100);
+		HAL_UART_Transmit(&huart2, "AT#MC\r", 6, uart_timeout);
 		return;
 	}
 	else if(areEqual(forward, secondType, 0, 3)){  //forward
-		HAL_UART_Transmit(&huart2, "AT#MD\r", 6,100);
+		HAL_UART_Transmit(&huart2, "AT#MD\r", 6, uart_timeout);
 		return;
 	}
 	else if(areEqual(backward, secondType, 0, 3)){ //backward
-		HAL_UART_Transmit(&huart2, "AT#ME\r", 6,100);
+		HAL_UART_Transmit(&huart2, "AT#ME\r", 6, uart_timeout);
 		return;
 	}
 	
@@ -300,36 +300,36 @@ void bluetoothSettings(){
 	
 	//start and stop pairing mode
 	if(areEqual(secondType, enterPairing, 0,3)){
-		HAL_UART_Transmit(&huart2, "AT#CA\r", 6,100);
+		HAL_UART_Transmit(&huart2, "AT#CA\r", 6, uart_timeout);
 		
 		return;
 	}else if(areEqual(secondType, cancelPairing, 0,3)){
-		HAL_UART_Transmit(&huart2, "AT#CB\r", 6,100);
-		HAL_UART_Transmit(&huart1, "Cancel pairing mode", 19,100);
+		HAL_UART_Transmit(&huart2, "AT#CB\r", 6, uart_timeout);
+		HAL_UART_Transmit(&huart1, "Cancel pairing mode", 19, uart_timeout);
 		return;
 	}
 	
 	//enable and disable Auto connect mode
 	if(areEqual(secondType, enableAutoConn, 0,3)){
 		
-		HAL_UART_Transmit(&huart2, "AT#MG\r", 6,100);
-		HAL_UART_Transmit(&huart1, "Enable Auto connect", 19,100);
+		HAL_UART_Transmit(&huart2, "AT#MG\r", 6, uart_timeout);
+		HAL_UART_Transmit(&huart1, "Enable Auto connect", 19, uart_timeout);
 		return;
 	}else if(areEqual(secondType, disableAutoConn, 0 , 3)){
-		HAL_UART_Transmit(&huart2, "AT#MH\r", 6,100);
-		HAL_UART_Transmit(&huart1, "Disable Auto connect", 20,100);
+		HAL_UART_Transmit(&huart2, "AT#MH\r", 6, uart_timeout);
+		HAL_UART_Transmit(&huart1, "Disable Auto connect", 20, uart_timeout);
 		return;
 	}
 	
 	//enable and disable Auto Answer mode
 	if(areEqual(secondType, enableAutoAnswer, 0,3)){
 		
-		HAL_UART_Transmit(&huart2, "AT#MP\r", 6,100);
-		HAL_UART_Transmit(&huart1, "Enable Auto Answer", 18,100);
+		HAL_UART_Transmit(&huart2, "AT#MP\r", 6, uart_timeout);
+		HAL_UART_Transmit(&huart1, "Enable Auto Answer", 18, uart_timeout);
 		return;
 	}else if(areEqual(secondType, disableAutoAnswer, 0 , 3)){
-		HAL_UART_Transmit(&huart2, "AT#MQ\r", 6,100);
-		HAL_UART_Transmit(&huart1, "Disable Auto Answer", 19,100);
+		HAL_UART_Transmit(&huart2, "AT#MQ\r", 6, uart_timeout);
+		HAL_UART_Transmit(&huart1, "Disable Auto Answer", 19, uart_timeout);
 		return;
 	}
 	

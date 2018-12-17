@@ -62,16 +62,27 @@ GPIO_PinState acciPinState, rcaiPinState;
 	
 /* Private variables ---------------------------------------------------------*/
 HAL_StatusTypeDef readAdc;
+bool debugState = false;
 
 
-uint8_t buffer[8]={0x00, 0x00, 0x00, 0x63, 0x04, 0x23, 0x12, 0x15}; 
-
+//uint8_t buffer[8]={0x00, 0x00, 0x00, 0x63, 0x04, 0x23, 0x12, 0x15}; 
+uint8_t pt2313_buffer[8]=
+{30,//mainVolume
+192,//LeftFront 223-192
+224,//RightFront 255-224
+128,//LeftRear 159-128
+160,//RightRear 191-160
+93,//switch mode 64aux  65android & BT  66radio
+96,//base 111-96
+112//treble 127-112
+}; 
 uint8_t aaa[4];
-uint8_t bt[5];                                               //buffer for tea5767
+int i2c_timeout = 2;
+int uart_timeout = 10;
 
 
 
-uint8_t senddata[5];
+
 HAL_StatusTypeDef init;
 
 
@@ -91,7 +102,8 @@ uint8_t mode[3] = {'m','o','d'};
 uint8_t audio[3] = {'a','u','d'};
 uint8_t radio[3] = {'r','a','d'};
 uint8_t bluetooth[3] = {'b','l','t'};
-int ADC_buffer[2];
+uint8_t debug[3] = {'d','b','g'};
+uint32_t ADC_buffer[2];
 uint32_t temp_val, temperature;
 float vsense = 3.3/1023;
 
@@ -130,7 +142,7 @@ void tea5767Setfrequency( uint32_t frequency );
 
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){//recive from uart1
-	HAL_UART_Receive (&huart1, &rx_data, 1,100);
+	HAL_UART_Receive (&huart1, &rx_data, 1, uart_timeout);
   if( huart->Instance == USART1 )
   {    
     
@@ -139,7 +151,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){//recive from uart1
       for(int i=0; i<32; i++)
       {
         rx_buffer[i]=0;
-        //type[i] = 0;
       }
     }
     
@@ -147,16 +158,12 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){//recive from uart1
     if (rx_data != 0x3f)
     {
       rx_buffer[rx_index++] = rx_data;
-      
-      
     }
     else
     {
-      //HAL_UART_Transmit (&huart1, rx_buffer, rx_index,100); //transmit the data via usart      
-      
+            
       //VOICE CHANNEL SWITCHING
       if(areEqual(mode, rx_buffer,0,3)){
-        //HAL_UART_Transmit (&huart1, rx_buffer, rx_index,100);
         checkMode();
 				rx_index = 0;
 				return;
@@ -182,7 +189,18 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){//recive from uart1
 				return;
       }
       
-      
+			//enable and disable debugmode
+      if(areEqual(debug, rx_buffer,0 , 3)){
+				if(debugState){
+					debugState = false;
+					HAL_UART_Transmit (&huart1, (uint8_t*)"dOff", 4, uart_timeout);
+				}else{
+					debugState = true;
+					HAL_UART_Transmit (&huart1, (uint8_t*)"dOn", 3, uart_timeout);
+				}
+				rx_index = 0;
+				return;
+      }
       
       
       //RTD SECTION
@@ -193,30 +211,21 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){//recive from uart1
       rx_index = 0;
 
     }
-    
-    
-    
   }
-	
 }
-
-
-
-
 
 
 bool areEqual(uint8_t arr1[], uint8_t arr2[], int i, int n){//compare two array
     // Linearly compare elements
-    for (i; i<n; i++){
-         if (arr1[i] != arr2[i]){
-						//HAL_IWDG_Refresh(&hiwdg);
+    for (int a=i; a<n; a++){
+         if (arr1[a] != arr2[a]){
 						return false;
 				 }
 			 }         
     // If all elements were same.
     return true;
 }
-int arrayToInt(uint8_t mArr[]){ //forr radio frq
+int arrayToInt(uint8_t mArr[]){ //for radio frq
   int b,o,n,m,k;
 	
   if(mArr[1]==0x00){
@@ -242,7 +251,7 @@ int arrayToInt(uint8_t mArr[]){ //forr radio frq
 }
 
 int arrayToInt_withIndex(uint8_t mArr[],int index){//converting recived string data from android to INT for sound values
-  int b,o,n,m,k;
+  int b,o,n,k;
 	if(index == 0){
 		b= (mArr[index]-'0')*10;
 		o= (mArr[index+1]-'0');
@@ -258,24 +267,19 @@ int arrayToInt_withIndex(uint8_t mArr[],int index){//converting recived string d
 	
 }
 
-bool checkDeviceI2cConnection(uint16_t DevAddress){
-	//check I2c connection situation with pt2313 module
+bool checkDeviceI2cConnection(uint16_t DevAddress){//check I2c connection situation with i2c modules
+	
 	init=HAL_I2C_IsDeviceReady(&hi2c1,DevAddress,1,10);
 	if(init == HAL_OK){
 		return true;
 	}else return false;
 }
 
-
-
 /* Private function prototypes -----------------------------------------------*/
 
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
-
-
-
 
 /* USER CODE END 0 */
 
@@ -287,9 +291,7 @@ bool checkDeviceI2cConnection(uint16_t DevAddress){
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-HAL_GPIO_WritePin( GPIOB, GPIO_PIN_14, 1);
-	
-//	HAL_GPIO_WritePin(ldro_GPIO_Port,ldro_Pin, 1);
+	HAL_GPIO_WritePin( GPIOB, GPIO_PIN_14, GPIO_PIN_SET);
 
 
   /* USER CODE END 1 */
@@ -323,7 +325,7 @@ HAL_GPIO_WritePin( GPIOB, GPIO_PIN_14, 1);
   /* Initialize interrupts */
   MX_NVIC_Init();
   /* USER CODE BEGIN 2 */
-	HAL_ADC_Start_DMA(&hadc1, ADC_buffer, 2);
+	HAL_ADC_Start_DMA(&hadc1,(uint32_t*) ADC_buffer, 2);
 	__HAL_IWDG_START(&hiwdg);
 	
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1); //start timer2 channel_1 as pwm
@@ -336,44 +338,23 @@ HAL_GPIO_WritePin( GPIOB, GPIO_PIN_14, 1);
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-	
-	
-	
-	
-	
-		/*HAL_UART_Transmit(&huart1,"usart1 ok",11,2);
-		HAL_UART_Transmit(&huart2,"usart2 ok",11,2);
-		HAL_GPIO_WritePin( GPIOB, GPIO_PIN_1, 1);
-		HAL_GPIO_WritePin( GPIOB, GPIO_PIN_0, 1);
-		HAL_Delay(2000);*/
-		
-		
-//HAL_GPIO_WritePin(muto_GPIO_Port,muto_Pin, 0);		
-HAL_GPIO_WritePin(stbo_GPIO_Port,stbo_Pin, 0);
+HAL_GPIO_WritePin(acro_GPIO_Port,acro_Pin, GPIO_PIN_RESET);	
+HAL_GPIO_WritePin(swao_GPIO_Port,swao_Pin, GPIO_PIN_RESET);
+HAL_GPIO_WritePin(stbo_GPIO_Port,stbo_Pin, GPIO_PIN_RESET);
+HAL_GPIO_WritePin(muto_GPIO_Port,muto_Pin, GPIO_PIN_RESET);		
+HAL_GPIO_WritePin(stbo_GPIO_Port,stbo_Pin, GPIO_PIN_RESET);
+HAL_GPIO_WritePin(enpo_GPIO_Port,enpo_Pin, GPIO_PIN_RESET);
+HAL_GPIO_WritePin(enho_GPIO_Port,enho_Pin, GPIO_PIN_RESET);
 
-		
-		
-HAL_GPIO_WritePin(muto_GPIO_Port,muto_Pin, 0);		
-HAL_GPIO_WritePin(stbo_GPIO_Port,stbo_Pin, 0);
 
-HAL_GPIO_WritePin(enpo_GPIO_Port,enpo_Pin, 0);
-HAL_GPIO_WritePin(enho_GPIO_Port,enho_Pin, 0);
 
-				buffer[0]=30;
-	buffer[1]=208;//192 223
-	buffer[2]=240;//224 255
-	buffer[3]=144;//128 159
-	buffer[4]=176;//160 191
-	buffer[5]=65;//64aux  65raspbery  66radio
-	buffer[6]=96;
-	buffer[7]=112;
-	//if(checkDeviceI2cConnection(0x44<<1)){
+	if(checkDeviceI2cConnection(soundModuleI2CAddress)){
 		
-		HAL_I2C_Master_Transmit(&hi2c1,soundModuleI2CAddress,buffer,7,2);
-//	}
+		HAL_I2C_Master_Transmit(&hi2c1,soundModuleI2CAddress,pt2313_buffer,7, i2c_timeout);
+}
  	
     
-		HAL_UART_Transmit (&huart1, "RUN", 3,10);
+		HAL_UART_Transmit (&huart1, (uint8_t*)"RUN", 3, uart_timeout);
 
 
   while (1)
@@ -383,21 +364,21 @@ HAL_GPIO_WritePin(enho_GPIO_Port,enho_Pin, 0);
 		//HAL_Delay(5000); //check watchDog
 		
 		
-		/*acciPinState = HAL_GPIO_ReadPin(GPIOA,acci_Pin);
-	if(acciPinState == GPIO_PIN_RESET)//GPIO_PIN_1
+		acciPinState = HAL_GPIO_ReadPin(GPIOA,acci_Pin);
+	/*if(acciPinState == GPIO_PIN_RESET)//GPIO_PIN_1
 		{
-				HAL_GPIO_WritePin(enpo_GPIO_Port,enpo_Pin, 0);
-	 HAL_GPIO_WritePin(enho_GPIO_Port,enho_Pin, 0);		
-	HAL_GPIO_WritePin(muto_GPIO_Port,muto_Pin, 0);		
-HAL_GPIO_WritePin(stbo_GPIO_Port,stbo_Pin, 0);
+				HAL_GPIO_WritePin(enpo_GPIO_Port,(GPIO_PinState)enpo_Pin, GPIO_PIN_RESET);
+	 HAL_GPIO_WritePin(enho_GPIO_Port,(GPIO_PinState)enho_Pin, GPIO_PIN_RESET);		
+	HAL_GPIO_WritePin(muto_GPIO_Port,(GPIO_PinState)muto_Pin, GPIO_PIN_RESET);		
+HAL_GPIO_WritePin(stbo_GPIO_Port,(GPIO_PinState)stbo_Pin, GPIO_PIN_RESET);
     
 			
   }else{
 		
-    HAL_GPIO_WritePin(enpo_GPIO_Port,enpo_Pin, 1);
-	 HAL_GPIO_WritePin(enho_GPIO_Port,enho_Pin, 1);		
-	HAL_GPIO_WritePin(muto_GPIO_Port,muto_Pin, 1);		
-	HAL_GPIO_WritePin(stbo_GPIO_Port,stbo_Pin, 1);	
+    HAL_GPIO_WritePin(enpo_GPIO_Port,(GPIO_PinState)enpo_Pin, GPIO_PIN_SET);
+	 HAL_GPIO_WritePin(enho_GPIO_Port,(GPIO_PinState)enho_Pin, GPIO_PIN_SET);		
+	HAL_GPIO_WritePin(muto_GPIO_Port,(GPIO_PinState)muto_Pin, GPIO_PIN_SET);		
+	HAL_GPIO_WritePin(stbo_GPIO_Port,stbo_Pin, GPIO_PIN_SET);	
 	}
 	
 	rcaiPinState = HAL_GPIO_ReadPin(GPIOA,rcai_Pin);
@@ -410,9 +391,6 @@ HAL_GPIO_WritePin(stbo_GPIO_Port,stbo_Pin, 0);
 
 
 
-//
-	//HAL_GPIO_TogglePin(ldgo_GPIO_Port,ldgo_Pin);
-//		HAL_GPIO_TogglePin(ldro_GPIO_Port,ldro_Pin);	
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
@@ -723,49 +701,7 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void tea5767Setfrequency( uint32_t frequency )
-{
-  uint32_t pllValue;
- // uint8_t buffer[5] = { 0, 0, 0, 0, 0 };
-  
-  // Make sure I2C is initialised
- // if (!_tea5767Initialised) tea5767Init();
 
-  // Calculate PLL word for high side injection mode
-  // NDEC = (4*(FRF + FIF)) / FREFS
-  // where:
-  // FRF = Desired tuning frequency in Hz
-  // FIF = Intermediate frequency in Hz (225kHz)
-  // FREFS = Reference frequency in Hz (32.768kHz)
-  pllValue = (4 * (frequency + 225000)) / 32768;
-  
- // buffer[0] = (pllValue >> 8) & 0x3F;              // Upper 6 PLL bits (also turns mute and search mode off!)
- // buffer[1] = (pllValue & 0xFF);                   // Lower 8 PLL bits
-  //buffer[2] = TEA5767_WBYTE3_HLSI;                 // High side injection mode
- // buffer[3] = TEA5767_WBYTE4_XTAL;                 // XTAL bit = 1 for 32.768kHz crystal
-//  buffer[4] = 0;                                   // PLLREF bit = 0 for 32.768kHz crystal
-
-  // Send data over I2C
-  bt[0]=(pllValue >> 8) & 0x3F;
-   bt[1]=(pllValue & 0xFF);
-		// bt[0]=0x2c;
-   // bt[1]=0x37;
-    bt[2]=176;
-    bt[3]=16;
-    bt[4]=0;
-		
-		senddata[0]= bt[0];
-		senddata[1]= bt[1];
-		senddata[2]= bt[2];
-		senddata[3]= bt[3];
-		senddata[4]= bt[4];
-		
-
-		
-		
-	HAL_I2C_Master_Transmit(&hi2c1,RadioModuleI2CAddress,bt,5,2);	
-	
-}
 /* USER CODE END 4 */
 
 /**
