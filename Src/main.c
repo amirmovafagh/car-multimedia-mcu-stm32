@@ -10,7 +10,7 @@
   * inserted by the user or by software development tools
   * are owned by their respective copyright owners.
   *
-  * COPYRIGHT(c) 2018 STMicroelectronics
+  * COPYRIGHT(c) 2019 STMicroelectronics
   *
   * Redistribution and use in source and binary forms, with or without modification,
   * are permitted provided that the following conditions are met:
@@ -50,19 +50,24 @@
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
+
 I2C_HandleTypeDef hi2c1;
+
 IWDG_HandleTypeDef hiwdg;
+
 TIM_HandleTypeDef htim2;
+
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-GPIO_PinState acciPinState, rcaiPinState;
+GPIO_PinState acciPinState, reverseGearPinState;
 
 	
 /* Private variables ---------------------------------------------------------*/
 HAL_StatusTypeDef readAdc;
 bool debugState = false;
+bool avInput = false;
 
 
 //uint8_t buffer[8]={0x00, 0x00, 0x00, 0x63, 0x04, 0x23, 0x12, 0x15}; 
@@ -72,7 +77,7 @@ uint8_t pt2313_buffer[8]=
 224,//RightFront 255-224
 128,//LeftRear 159-128
 160,//RightRear 191-160
-93,//switch mode 64aux  65android & BT  66radio
+93,//switch mode 64aux  93android & BT  90radio
 96,//base 111-96
 112//treble 127-112
 }; 
@@ -80,9 +85,7 @@ uint8_t aaa[4];
 int i2c_timeout = 2;
 int uart_timeout = 10;
 
-
-
-
+uint32_t TimCall = 0;
 HAL_StatusTypeDef init;
 
 
@@ -102,6 +105,7 @@ uint8_t mode[3] = {'m','o','d'};
 uint8_t audio[3] = {'a','u','d'};
 uint8_t radio[3] = {'r','a','d'};
 uint8_t bluetooth[3] = {'b','l','t'};
+uint8_t other[3] = {'o','t','h'};
 uint8_t debug[3] = {'d','b','g'};
 uint32_t ADC_buffer[2];
 uint32_t temp_val, temperature;
@@ -126,7 +130,7 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 
 /* USER CODE BEGIN PFP */
 
-
+void custom_delay(uint32_t milliseconds);
 bool areEqual(uint8_t arr1[], uint8_t arr2[], int i, int n);
 void checkMode(void);
 void checkAudio(void);
@@ -136,10 +140,26 @@ void bluetoothCall(void);
 void bluetoothMusic(void);
 void checkBluetooth(void);
 int arrayToInt(uint8_t mArr[]);
-int arrayToInt_withIndex(uint8_t mArr[],int index);
+int arrayToInt_withIndex_soundValues(uint8_t mArr[],int index);
+int arrayToInt_withIndex_radioValues(uint8_t mArr[],int index);
 bool checkDeviceI2cConnection(uint16_t DevAddress);
-void tea5767Setfrequency( uint32_t frequency );
 
+
+void custom_delay(uint32_t milliseconds) {
+
+   /* Initially clear flag */
+
+   (void) SysTick->CTRL;
+
+   while (milliseconds != 0) {
+
+      /* COUNTFLAG returns 1 if timer counted to 0 since the last flag read */
+
+      milliseconds -= (SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk) >> SysTick_CTRL_COUNTFLAG_Pos;
+
+   }
+
+}
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){//recive from uart1
 	HAL_UART_Receive (&huart1, &rx_data, 1, uart_timeout);
@@ -153,7 +173,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){//recive from uart1
         rx_buffer[i]=0;
       }
     }
-    
       //if the charcter received is other than'?' ascii 0x3f, save the data in buffer
     if (rx_data != 0x3f)
     {
@@ -185,6 +204,22 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){//recive from uart1
 			
       if(areEqual(bluetooth, rx_buffer,0 , 3)){
 				checkBluetooth();
+				rx_index = 0;
+				return;
+      }
+			
+			if(areEqual(other, rx_buffer,0 , 3)){
+				if(avInput){
+					avInput = false;
+					//HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_RESET);	
+					HAL_GPIO_WritePin(switchRTDoutput_GPIO_Port, switchRTDoutput_Pin, GPIO_PIN_RESET);
+					HAL_UART_Transmit (&huart1, (uint8_t*)"pion", 4, uart_timeout);
+				}else{
+					avInput = true;
+					//HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_RESET);	
+					HAL_GPIO_WritePin(switchRTDoutput_GPIO_Port, switchRTDoutput_Pin, GPIO_PIN_SET);
+					HAL_UART_Transmit (&huart1, (uint8_t*)"pof", 3, uart_timeout);
+				}
 				rx_index = 0;
 				return;
       }
@@ -250,7 +285,7 @@ int arrayToInt(uint8_t mArr[]){ //for radio frq
   return k;
 }
 
-int arrayToInt_withIndex(uint8_t mArr[],int index){//converting recived string data from android to INT for sound values
+int arrayToInt_withIndex_soundValues(uint8_t mArr[],int index){//converting recived string data from android to INT for sound values
   int b,o,n,k;
 	if(index == 0){
 		b= (mArr[index]-'0')*10;
@@ -267,19 +302,40 @@ int arrayToInt_withIndex(uint8_t mArr[],int index){//converting recived string d
 	
 }
 
+int arrayToInt_withIndex_radioValues(uint8_t mArr[],int index){//converting recived string data from android to INT for sound values
+  int b,o,n,k,j;
+	if(index == 0 || index == 7){
+		k= (mArr[index]-'0');
+		return k;
+	}else {
+		b= (mArr[index]-'0')*1000;
+		o= (mArr[index+1]-'0')*100;
+		n= (mArr[index+2]-'0')*10;
+		j= (mArr[index+3]-'0');
+		k=b+o+n+j;
+		return k;
+	}
+	
+}
+
 bool checkDeviceI2cConnection(uint16_t DevAddress){//check I2c connection situation with i2c modules
 	
 	init=HAL_I2C_IsDeviceReady(&hi2c1,DevAddress,1,10);
+	
 	if(init == HAL_OK){
 		return true;
 	}else return false;
 }
+
+
 
 /* Private function prototypes -----------------------------------------------*/
 
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
+
+
 
 /* USER CODE END 0 */
 
@@ -325,9 +381,10 @@ int main(void)
   /* Initialize interrupts */
   MX_NVIC_Init();
   /* USER CODE BEGIN 2 */
-	HAL_ADC_Start_DMA(&hadc1,(uint32_t*) ADC_buffer, 2);
 	__HAL_IWDG_START(&hiwdg);
+	HAL_ADC_Start_DMA(&hadc1,(uint32_t*) ADC_buffer, 2);
 	
+	//HAL_TIM_Base_Start_IT(&htim4);
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1); //start timer2 channel_1 as pwm
 	TIM2->CCR1 = 130;//pwm value from 0 to 65535
 
@@ -338,14 +395,8 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-HAL_GPIO_WritePin(acro_GPIO_Port,acro_Pin, GPIO_PIN_RESET);	
-HAL_GPIO_WritePin(swao_GPIO_Port,swao_Pin, GPIO_PIN_RESET);
-HAL_GPIO_WritePin(stbo_GPIO_Port,stbo_Pin, GPIO_PIN_RESET);
-HAL_GPIO_WritePin(muto_GPIO_Port,muto_Pin, GPIO_PIN_RESET);		
-HAL_GPIO_WritePin(stbo_GPIO_Port,stbo_Pin, GPIO_PIN_RESET);
-HAL_GPIO_WritePin(enpo_GPIO_Port,enpo_Pin, GPIO_PIN_RESET);
-HAL_GPIO_WritePin(enho_GPIO_Port,enho_Pin, GPIO_PIN_RESET);
-
+	
+	
 
 
 	if(checkDeviceI2cConnection(soundModuleI2CAddress)){
@@ -355,37 +406,54 @@ HAL_GPIO_WritePin(enho_GPIO_Port,enho_Pin, GPIO_PIN_RESET);
  	
     
 		HAL_UART_Transmit (&huart1, (uint8_t*)"RUN", 3, uart_timeout);
-
-
+		//Delay_us(999999);
   while (1)
   {
+		//HAL_Delay(30000); //check watchDog
+			HAL_IWDG_Refresh(&hiwdg);
 		
-		HAL_IWDG_Refresh(&hiwdg);
-		//HAL_Delay(5000); //check watchDog
 		
 		
-		acciPinState = HAL_GPIO_ReadPin(GPIOA,acci_Pin);
-	/*if(acciPinState == GPIO_PIN_RESET)//GPIO_PIN_1
+		
+			acciPinState = HAL_GPIO_ReadPin(GPIOA,accInput_Pin);
+			if(acciPinState == GPIO_PIN_RESET)//GPIO_PIN_1
 		{
-				HAL_GPIO_WritePin(enpo_GPIO_Port,(GPIO_PinState)enpo_Pin, GPIO_PIN_RESET);
-	 HAL_GPIO_WritePin(enho_GPIO_Port,(GPIO_PinState)enho_Pin, GPIO_PIN_RESET);		
-	HAL_GPIO_WritePin(muto_GPIO_Port,(GPIO_PinState)muto_Pin, GPIO_PIN_RESET);		
-HAL_GPIO_WritePin(stbo_GPIO_Port,(GPIO_PinState)stbo_Pin, GPIO_PIN_RESET);
-    
+			HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_RESET);
+			//HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_SET);	
+			//HAL_GPIO_WritePin(switchRTDoutput_GPIO_Port, switchRTDoutput_Pin, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(standbySoundModuleAmpOutput_GPIO_Port, standbySoundModuleAmpOutput_Pin, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(muteOutput_GPIO_Port, muteOutput_Pin, GPIO_PIN_RESET);		
+			HAL_GPIO_WritePin(power12V_GPIO_Port, power12V_Pin, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(powerUSBHub_GPIO_Port, powerUSBHub_Pin, GPIO_PIN_RESET);
+						HAL_GPIO_WritePin(antennaOutput_GPIO_Port, antennaOutput_Pin, GPIO_PIN_SET);
 			
+						HAL_GPIO_WritePin(amplifireOutput_GPIO_Port, amplifireOutput_Pin, GPIO_PIN_SET);
+
+
+			HAL_GPIO_WritePin(fan_GPIO_Port,fan_Pin, GPIO_PIN_SET);
+	
   }else{
-		
-    HAL_GPIO_WritePin(enpo_GPIO_Port,(GPIO_PinState)enpo_Pin, GPIO_PIN_SET);
-	 HAL_GPIO_WritePin(enho_GPIO_Port,(GPIO_PinState)enho_Pin, GPIO_PIN_SET);		
-	HAL_GPIO_WritePin(muto_GPIO_Port,(GPIO_PinState)muto_Pin, GPIO_PIN_SET);		
-	HAL_GPIO_WritePin(stbo_GPIO_Port,stbo_Pin, GPIO_PIN_SET);	
+	
+			HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_SET);
+
+			HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_SET);
+			//HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_SET);	
+			//HAL_GPIO_WritePin(switchRTDoutput_GPIO_Port, switchRTDoutput_Pin, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(standbySoundModuleAmpOutput_GPIO_Port, standbySoundModuleAmpOutput_Pin, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(muteOutput_GPIO_Port, muteOutput_Pin, GPIO_PIN_SET);		
+			HAL_GPIO_WritePin(power12V_GPIO_Port, power12V_Pin, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(powerUSBHub_GPIO_Port, powerUSBHub_Pin, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(fan_GPIO_Port,fan_Pin, GPIO_PIN_SET);
 	}
 	
-	rcaiPinState = HAL_GPIO_ReadPin(GPIOA,rcai_Pin);
-	if(rcaiPinState == GPIO_PIN_RESET)
+	reverseGearPinState = HAL_GPIO_ReadPin(GPIOA,rearCameraInput_Pin);
+	if(reverseGearPinState == GPIO_PIN_RESET)
 	{
-		
-	}*/
+		HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_RESET);
+	}else
+			HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_SET);
+
 
 	
 
@@ -536,8 +604,8 @@ static void MX_IWDG_Init(void)
 {
 
   hiwdg.Instance = IWDG;
-  hiwdg.Init.Prescaler = IWDG_PRESCALER_64;
-  hiwdg.Init.Reload = 3000;
+  hiwdg.Init.Prescaler = IWDG_PRESCALER_128;
+  hiwdg.Init.Reload = 4095;
   if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
@@ -619,7 +687,7 @@ static void MX_USART2_UART_Init(void)
 {
 
   huart2.Instance = USART2;
-  huart2.Init.BaudRate = 19200;
+  huart2.Init.BaudRate = 115200;
   huart2.Init.WordLength = UART_WORDLENGTH_8B;
   huart2.Init.StopBits = UART_STOPBITS_1;
   huart2.Init.Parity = UART_PARITY_NONE;
@@ -667,36 +735,46 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(anto_GPIO_Port, anto_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(antennaOutput_GPIO_Port, antennaOutput_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, stbo_Pin|muto_Pin|swao_Pin|fan_Pin 
-                          |enpo_Pin|enho_Pin|ldro_Pin|ldgo_Pin 
-                          |ampo_Pin|acro_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, standbySoundModuleAmpOutput_Pin|muteOutput_Pin|switchRTDoutput_Pin|fan_Pin 
+                          |power12V_Pin|powerUSBHub_Pin|ledRedOutput_Pin|ledGreenOutput_Pin 
+                          |amplifireOutput_Pin|accRTDoutput_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : anto_Pin */
-  GPIO_InitStruct.Pin = anto_Pin;
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : antennaOutput_Pin */
+  GPIO_InitStruct.Pin = antennaOutput_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(anto_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(antennaOutput_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : brdi_Pin ladi_Pin rcai_Pin acci_Pin */
-  GPIO_InitStruct.Pin = brdi_Pin|ladi_Pin|rcai_Pin|acci_Pin;
+  /*Configure GPIO pins : breakDetectInput_Pin lampDetectInput_Pin rearCameraInput_Pin accInput_Pin */
+  GPIO_InitStruct.Pin = breakDetectInput_Pin|lampDetectInput_Pin|rearCameraInput_Pin|accInput_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : stbo_Pin muto_Pin swao_Pin fan_Pin 
-                           enpo_Pin enho_Pin ldro_Pin ldgo_Pin 
-                           ampo_Pin acro_Pin */
-  GPIO_InitStruct.Pin = stbo_Pin|muto_Pin|swao_Pin|fan_Pin 
-                          |enpo_Pin|enho_Pin|ldro_Pin|ldgo_Pin 
-                          |ampo_Pin|acro_Pin;
+  /*Configure GPIO pins : standbySoundModuleAmpOutput_Pin muteOutput_Pin switchRTDoutput_Pin fan_Pin 
+                           power12V_Pin powerUSBHub_Pin ledRedOutput_Pin ledGreenOutput_Pin 
+                           amplifireOutput_Pin accRTDoutput_Pin */
+  GPIO_InitStruct.Pin = standbySoundModuleAmpOutput_Pin|muteOutput_Pin|switchRTDoutput_Pin|fan_Pin 
+                          |power12V_Pin|powerUSBHub_Pin|ledRedOutput_Pin|ledGreenOutput_Pin 
+                          |amplifireOutput_Pin|accRTDoutput_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : headunitOutput_Pin */
+  GPIO_InitStruct.Pin = headunitOutput_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(headunitOutput_GPIO_Port, &GPIO_InitStruct);
 
 }
 

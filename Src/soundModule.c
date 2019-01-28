@@ -2,7 +2,7 @@
 
 void checkMode(){
 	if(checkDeviceI2cConnection(soundModuleI2CAddress)){
-		HAL_GPIO_WritePin(muto_GPIO_Port,muto_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(muteOutput_GPIO_Port, muteOutput_Pin, GPIO_PIN_RESET);
 //		static uint8_t aux[3]={'a','u','x'};
 		static uint8_t brightness[3] ={'b','r','g'};
 		uint8_t secondType[3];
@@ -25,7 +25,7 @@ void checkMode(){
 		for(int i=4; i<6 ; i++){
 			secondTypeAUDIO_mode[i-4]=rx_buffer[i];
 		}
-			pt2313_buffer[5]=arrayToInt_withIndex(secondTypeAUDIO_mode, 0);	
+			pt2313_buffer[5]=arrayToInt_withIndex_soundValues(secondTypeAUDIO_mode, 0);	
 			HAL_I2C_Master_Transmit(&hi2c1,soundModuleI2CAddress,pt2313_buffer,8, i2c_timeout);
 			if(debugState){
 				HAL_UART_Transmit (&huart1, (uint8_t*)"mod", 3, uart_timeout);
@@ -51,18 +51,18 @@ void checkAudio(){                         //Audio Module settings
 		}
 		
 		if(secondTypeAUDIO[10] == 0x00 && secondTypeAUDIO[7] == 0x00){
-			pt2313_buffer[0] = arrayToInt_withIndex(secondTypeAUDIO, 0); //volume
+			pt2313_buffer[0] = arrayToInt_withIndex_soundValues(secondTypeAUDIO, 0); //volume
 			for(int i = 0 ; i<30000 ; i++){}
 			HAL_I2C_Master_Transmit(&hi2c1,soundModuleI2CAddress,pt2313_buffer,8, i2c_timeout);
 				return;
 		}
-		pt2313_buffer[0] = arrayToInt_withIndex(secondTypeAUDIO, 0); //volume
-		pt2313_buffer[1] = arrayToInt_withIndex(secondTypeAUDIO, 3); //speaker left front
-		pt2313_buffer[2] = arrayToInt_withIndex(secondTypeAUDIO, 7); //speaker right front
-		pt2313_buffer[3] = arrayToInt_withIndex(secondTypeAUDIO, 11); //speaker left rear
-		pt2313_buffer[4] = arrayToInt_withIndex(secondTypeAUDIO, 15); //speaker right rear
-		pt2313_buffer[6] = arrayToInt_withIndex(secondTypeAUDIO, 19); //change bas
-		pt2313_buffer[7] = arrayToInt_withIndex(secondTypeAUDIO, 23); //change treble
+		pt2313_buffer[0] = arrayToInt_withIndex_soundValues(secondTypeAUDIO, 0); //volume
+		pt2313_buffer[1] = arrayToInt_withIndex_soundValues(secondTypeAUDIO, 3); //speaker left front
+		pt2313_buffer[2] = arrayToInt_withIndex_soundValues(secondTypeAUDIO, 7); //speaker right front
+		pt2313_buffer[3] = arrayToInt_withIndex_soundValues(secondTypeAUDIO, 11); //speaker left rear
+		pt2313_buffer[4] = arrayToInt_withIndex_soundValues(secondTypeAUDIO, 15); //speaker right rear
+		pt2313_buffer[6] = arrayToInt_withIndex_soundValues(secondTypeAUDIO, 19); //change bas
+		pt2313_buffer[7] = arrayToInt_withIndex_soundValues(secondTypeAUDIO, 23); //change treble
 		for(int i = 0 ; i<30000 ; i++){}
 		HAL_I2C_Master_Transmit(&hi2c1,soundModuleI2CAddress,pt2313_buffer,8, i2c_timeout);
 		/*if(buffer[0]==63){

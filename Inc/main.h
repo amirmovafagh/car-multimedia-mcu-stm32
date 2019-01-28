@@ -10,7 +10,7 @@
   * inserted by the user or by software development tools
   * are owned by their respective copyright owners.
   *
-  * COPYRIGHT(c) 2018 STMicroelectronics
+  * COPYRIGHT(c) 2019 STMicroelectronics
   *
   * Redistribution and use in source and binary forms, with or without modification,
   * are permitted provided that the following conditions are met:
@@ -49,36 +49,38 @@
 
 /* Private define ------------------------------------------------------------*/
 
-#define anto_Pin GPIO_PIN_13
-#define anto_GPIO_Port GPIOC
-#define brdi_Pin GPIO_PIN_4
-#define brdi_GPIO_Port GPIOA
-#define ladi_Pin GPIO_PIN_5
-#define ladi_GPIO_Port GPIOA
-#define rcai_Pin GPIO_PIN_6
-#define rcai_GPIO_Port GPIOA
-#define acci_Pin GPIO_PIN_7
-#define acci_GPIO_Port GPIOA
-#define stbo_Pin GPIO_PIN_0
-#define stbo_GPIO_Port GPIOB
-#define muto_Pin GPIO_PIN_1
-#define muto_GPIO_Port GPIOB
-#define swao_Pin GPIO_PIN_10
-#define swao_GPIO_Port GPIOB
+#define antennaOutput_Pin GPIO_PIN_13
+#define antennaOutput_GPIO_Port GPIOC
+#define breakDetectInput_Pin GPIO_PIN_4
+#define breakDetectInput_GPIO_Port GPIOA
+#define lampDetectInput_Pin GPIO_PIN_5
+#define lampDetectInput_GPIO_Port GPIOA
+#define rearCameraInput_Pin GPIO_PIN_6
+#define rearCameraInput_GPIO_Port GPIOA
+#define accInput_Pin GPIO_PIN_7
+#define accInput_GPIO_Port GPIOA
+#define standbySoundModuleAmpOutput_Pin GPIO_PIN_0
+#define standbySoundModuleAmpOutput_GPIO_Port GPIOB
+#define muteOutput_Pin GPIO_PIN_1
+#define muteOutput_GPIO_Port GPIOB
+#define switchRTDoutput_Pin GPIO_PIN_10
+#define switchRTDoutput_GPIO_Port GPIOB
 #define fan_Pin GPIO_PIN_11
 #define fan_GPIO_Port GPIOB
-#define enpo_Pin GPIO_PIN_12
-#define enpo_GPIO_Port GPIOB
-#define enho_Pin GPIO_PIN_13
-#define enho_GPIO_Port GPIOB
-#define ldro_Pin GPIO_PIN_14
-#define ldro_GPIO_Port GPIOB
-#define ldgo_Pin GPIO_PIN_15
-#define ldgo_GPIO_Port GPIOB
-#define ampo_Pin GPIO_PIN_3
-#define ampo_GPIO_Port GPIOB
-#define acro_Pin GPIO_PIN_4
-#define acro_GPIO_Port GPIOB
+#define power12V_Pin GPIO_PIN_12
+#define power12V_GPIO_Port GPIOB
+#define powerUSBHub_Pin GPIO_PIN_13
+#define powerUSBHub_GPIO_Port GPIOB
+#define ledRedOutput_Pin GPIO_PIN_14
+#define ledRedOutput_GPIO_Port GPIOB
+#define ledGreenOutput_Pin GPIO_PIN_15
+#define ledGreenOutput_GPIO_Port GPIOB
+#define headunitOutput_Pin GPIO_PIN_8
+#define headunitOutput_GPIO_Port GPIOA
+#define amplifireOutput_Pin GPIO_PIN_3
+#define amplifireOutput_GPIO_Port GPIOB
+#define accRTDoutput_Pin GPIO_PIN_4
+#define accRTDoutput_GPIO_Port GPIOB
 
 /* ########################## Assert Selection ############################## */
 /**

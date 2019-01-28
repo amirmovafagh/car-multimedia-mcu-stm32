@@ -20,6 +20,7 @@ extern uint8_t bluetooth[3];
 extern uint8_t debug[3];
 extern bool debugState;
 
+extern void custom_delay(uint32_t milliseconds);
 extern bool areEqual(uint8_t arr1[], uint8_t arr2[], int i, int n);
 extern void checkMode(void);
 extern void checkAudio(void);
@@ -29,6 +30,6 @@ extern void bluetoothCall(void);
 extern void bluetoothMusic(void);
 extern void checkBluetooth(void);
 extern int arrayToInt(uint8_t mArr[]);
-extern int arrayToInt_withIndex(uint8_t mArr[],int index);
+extern int arrayToInt_withIndex_soundValues(uint8_t mArr[],int index);
+extern int arrayToInt_withIndex_radioValues(uint8_t mArr[],int index);
 extern bool checkDeviceI2cConnection(uint16_t DevAddress);
-extern void tea5767Setfrequency( uint32_t frequency );
