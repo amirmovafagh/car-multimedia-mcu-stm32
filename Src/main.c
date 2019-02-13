@@ -61,13 +61,15 @@ UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-GPIO_PinState acciPinState, reverseGearPinState;
+GPIO_PinState acciPinState, reverseGearPinState, carLightLampPinState;
 
 	
 /* Private variables ---------------------------------------------------------*/
 HAL_StatusTypeDef readAdc;
 bool debugState = false;
-bool avInput = false;
+bool avTVinputState = false;
+bool carLightState = false;
+
 
 
 //uint8_t buffer[8]={0x00, 0x00, 0x00, 0x63, 0x04, 0x23, 0x12, 0x15}; 
@@ -94,6 +96,11 @@ int rx_index=0;
 uint8_t rx_data;
 uint8_t rx_buffer[32];
 
+bool radioAntenaState = false;
+bool avCameraInputState = false;
+bool accState = false;
+
+
 
 
 uint32_t frq2;
@@ -110,7 +117,8 @@ uint8_t debug[3] = {'d','b','g'};
 uint32_t ADC_buffer[2];
 uint32_t temp_val, temperature;
 float vsense = 3.3/1023;
-
+int pwmValue = 130 ; //brightness default value 
+int pwmValueLightOn = 95 ;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -209,15 +217,18 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){//recive from uart1
       }
 			
 			if(areEqual(other, rx_buffer,0 , 3)){
-				if(avInput){
-					avInput = false;
-					//HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_RESET);	
+				if(avTVinputState){
+					
+					
+					
 					HAL_GPIO_WritePin(switchRTDoutput_GPIO_Port, switchRTDoutput_Pin, GPIO_PIN_RESET);
 					HAL_UART_Transmit (&huart1, (uint8_t*)"pion", 4, uart_timeout);
+					avTVinputState = false;
 				}else{
-					avInput = true;
-					//HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_RESET);	
+					avTVinputState = true;
+					HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_SET);
 					HAL_GPIO_WritePin(switchRTDoutput_GPIO_Port, switchRTDoutput_Pin, GPIO_PIN_SET);
+					
 					HAL_UART_Transmit (&huart1, (uint8_t*)"pof", 3, uart_timeout);
 				}
 				rx_index = 0;
@@ -238,7 +249,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){//recive from uart1
       }
       
       
-      //RTD SECTION
+			//RTD SECTION
       /*if(areEqual(rtd, rx_buffer,0 , 3)){
         
       }*/
@@ -386,7 +397,7 @@ int main(void)
 	
 	//HAL_TIM_Base_Start_IT(&htim4);
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1); //start timer2 channel_1 as pwm
-	TIM2->CCR1 = 130;//pwm value from 0 to 65535
+	TIM2->CCR1 = pwmValue;//pwm value from 0 to 65535
 
 //__HAL_UART_ENABLE_IT(&huart1,UART_IT_TC);
  __HAL_UART_ENABLE_IT(&huart1,UART_IT_RXNE);//ssssssssssssssssssssssssssssssssssssssssssssssssssss
@@ -406,18 +417,18 @@ int main(void)
  	
     
 		HAL_UART_Transmit (&huart1, (uint8_t*)"RUN", 3, uart_timeout);
-		//Delay_us(999999);
   while (1)
   {
 		//HAL_Delay(30000); //check watchDog
-			HAL_IWDG_Refresh(&hiwdg);
-		
-		
-		
-		
-			acciPinState = HAL_GPIO_ReadPin(GPIOA,accInput_Pin);
-			if(acciPinState == GPIO_PIN_RESET)//GPIO_PIN_1
+		HAL_IWDG_Refresh(&hiwdg); //watch dog with down init 30 seconds need to reset
+	
+		carLightLampPinState = HAL_GPIO_ReadPin(GPIOA,lampDetectInput_Pin); //check car light_lamp state9
+		reverseGearPinState = HAL_GPIO_ReadPin(GPIOA,rearCameraInput_Pin); //check reverse gear state
+		acciPinState = HAL_GPIO_ReadPin(GPIOA,accInput_Pin); //check Switch On state
+
+		if(acciPinState == GPIO_PIN_RESET)//GPIO_PIN_1
 		{
+			accState = true;
 			HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_RESET);
 			HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_RESET);
 			//HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_SET);	
@@ -426,38 +437,62 @@ int main(void)
 			HAL_GPIO_WritePin(muteOutput_GPIO_Port, muteOutput_Pin, GPIO_PIN_RESET);		
 			HAL_GPIO_WritePin(power12V_GPIO_Port, power12V_Pin, GPIO_PIN_RESET);
 			HAL_GPIO_WritePin(powerUSBHub_GPIO_Port, powerUSBHub_Pin, GPIO_PIN_RESET);
-						HAL_GPIO_WritePin(antennaOutput_GPIO_Port, antennaOutput_Pin, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(amplifireOutput_GPIO_Port, amplifireOutput_Pin, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(fan_GPIO_Port,fan_Pin, GPIO_PIN_RESET);
+
+		}else
+		{
+			accState = false;
+			if(avCameraInputState){
+				avCameraInputState = false;
+				HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_SET);
+				custom_delay(5000); //waiting for switch mode av to hdmi
+			}else 
+			{
+				HAL_GPIO_WritePin(power12V_GPIO_Port, power12V_Pin, GPIO_PIN_SET);
+			}
 			
-						HAL_GPIO_WritePin(amplifireOutput_GPIO_Port, amplifireOutput_Pin, GPIO_PIN_SET);
-
-
-			HAL_GPIO_WritePin(fan_GPIO_Port,fan_Pin, GPIO_PIN_SET);
-	
-  }else{
-	
-			HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_SET);
-
-			HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_SET);
+			//HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_SET);
 			//HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_SET);	
 			//HAL_GPIO_WritePin(switchRTDoutput_GPIO_Port, switchRTDoutput_Pin, GPIO_PIN_SET);
 			HAL_GPIO_WritePin(standbySoundModuleAmpOutput_GPIO_Port, standbySoundModuleAmpOutput_Pin, GPIO_PIN_SET);
 			HAL_GPIO_WritePin(muteOutput_GPIO_Port, muteOutput_Pin, GPIO_PIN_SET);		
-			HAL_GPIO_WritePin(power12V_GPIO_Port, power12V_Pin, GPIO_PIN_SET);
 			HAL_GPIO_WritePin(powerUSBHub_GPIO_Port, powerUSBHub_Pin, GPIO_PIN_SET);
 			HAL_GPIO_WritePin(fan_GPIO_Port,fan_Pin, GPIO_PIN_SET);
-	}
+			HAL_GPIO_WritePin(power12V_GPIO_Port, power12V_Pin, GPIO_PIN_SET);
+		}
+
+		if(accState){
+			if(reverseGearPinState == GPIO_PIN_SET && !avTVinputState)
+			{
+				avCameraInputState = false;
+				HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_SET);
+			}else{
+				avCameraInputState = true;
+				HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_RESET); // with 0 switch will be on and set on AV
+			}
+			
+			if(avTVinputState){
+				if(reverseGearPinState == GPIO_PIN_SET )
+				{
+					avCameraInputState = false;
+					//avTVinputState = false;
+					HAL_GPIO_WritePin(switchRTDoutput_GPIO_Port, switchRTDoutput_Pin, GPIO_PIN_SET);//Switch from camera to tv 
+				}else{
+					avCameraInputState = true;
+					HAL_GPIO_WritePin(switchRTDoutput_GPIO_Port, switchRTDoutput_Pin, GPIO_PIN_RESET); //Switch from tv to camera	
+				}
+			}
+			if(carLightLampPinState == GPIO_PIN_RESET){ //check car light state and change the brightness
+				carLightState = true;
+				//custom_delay(1000);
+				TIM2->CCR1 = pwmValueLightOn;
+			}else {
+				carLightState = false;
+				TIM2->CCR1 = pwmValue;
+			}
+		}
 	
-	reverseGearPinState = HAL_GPIO_ReadPin(GPIOA,rearCameraInput_Pin);
-	if(reverseGearPinState == GPIO_PIN_RESET)
-	{
-		HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_RESET);
-	}else
-			HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_SET);
-
-
-	
-
-
 
   /* USER CODE END WHILE */
 
@@ -604,7 +639,7 @@ static void MX_IWDG_Init(void)
 {
 
   hiwdg.Instance = IWDG;
-  hiwdg.Init.Prescaler = IWDG_PRESCALER_128;
+  hiwdg.Init.Prescaler = IWDG_PRESCALER_256;
   hiwdg.Init.Reload = 4095;
   if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
   {
@@ -624,7 +659,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 69;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 110;
+  htim2.Init.Period = 113;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)

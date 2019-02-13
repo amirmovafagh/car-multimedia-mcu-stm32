@@ -4,6 +4,8 @@
 
 extern int uart_timeout;
 extern int i2c_timeout;
+
+extern bool radioAntenaState;
 extern uint8_t rx_buffer[32];
 extern UART_HandleTypeDef huart2;
 extern UART_HandleTypeDef huart1;
@@ -12,6 +14,9 @@ extern uint16_t soundModuleI2CAddress;
 extern uint16_t RadioModuleI2CAddress;
 extern uint8_t pt2313_buffer[8];
 extern uint32_t frq2;
+extern int pwmValue;
+extern int pwmValueLightOn;
+extern bool carLightState;
 extern I2C_HandleTypeDef hi2c1;
 extern uint8_t mode[3];
 extern uint8_t audio[3];
