@@ -83,7 +83,7 @@ uint8_t pt2313_buffer[8]=
 96,//base 111-96
 112//treble 127-112
 }; 
-uint8_t aaa[4];
+
 int i2c_timeout = 2;
 int uart_timeout = 10;
 
@@ -99,11 +99,12 @@ uint8_t rx_buffer[32];
 bool radioAntenaState = false;
 bool avCameraInputState = false;
 bool accState = false;
+bool firstRun = true;
 
 
 
 
-uint32_t frq2;
+
 uint16_t soundModuleI2CAddress = 0x88;
 uint16_t RadioModuleI2CAddress = 0xC0;
 
@@ -220,16 +221,16 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){//recive from uart1
 				if(avTVinputState){
 					
 					
-					
-					HAL_GPIO_WritePin(switchRTDoutput_GPIO_Port, switchRTDoutput_Pin, GPIO_PIN_RESET);
-					HAL_UART_Transmit (&huart1, (uint8_t*)"pion", 4, uart_timeout);
+					pt2313_buffer[5]=93;
+					HAL_I2C_Master_Transmit(&hi2c1,soundModuleI2CAddress,pt2313_buffer,8, i2c_timeout);
+					HAL_GPIO_WritePin(switchRTDoutput_GPIO_Port, switchRTDoutput_Pin, GPIO_PIN_RESET);// back to hdmi
 					avTVinputState = false;
 				}else{
+					pt2313_buffer[5]=64;
+					HAL_I2C_Master_Transmit(&hi2c1,soundModuleI2CAddress,pt2313_buffer,8, i2c_timeout);
 					avTVinputState = true;
 					HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_SET);
-					HAL_GPIO_WritePin(switchRTDoutput_GPIO_Port, switchRTDoutput_Pin, GPIO_PIN_SET);
-					
-					HAL_UART_Transmit (&huart1, (uint8_t*)"pof", 3, uart_timeout);
+					HAL_GPIO_WritePin(switchRTDoutput_GPIO_Port, switchRTDoutput_Pin, GPIO_PIN_SET);// set On Tv
 				}
 				rx_index = 0;
 				return;
@@ -408,7 +409,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
 	
 	
-
+	HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_SET); //set headUnit Off for first time installing and on with first acc power on
 
 	if(checkDeviceI2cConnection(soundModuleI2CAddress)){
 		
@@ -429,16 +430,15 @@ int main(void)
 		if(acciPinState == GPIO_PIN_RESET)//GPIO_PIN_1
 		{
 			accState = true;
+			
 			HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_RESET);
-			//HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_SET);	
-			//HAL_GPIO_WritePin(switchRTDoutput_GPIO_Port, switchRTDoutput_Pin, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(power12V_GPIO_Port, power12V_Pin, GPIO_PIN_RESET);
 			HAL_GPIO_WritePin(standbySoundModuleAmpOutput_GPIO_Port, standbySoundModuleAmpOutput_Pin, GPIO_PIN_RESET);
 			HAL_GPIO_WritePin(muteOutput_GPIO_Port, muteOutput_Pin, GPIO_PIN_RESET);		
-			HAL_GPIO_WritePin(power12V_GPIO_Port, power12V_Pin, GPIO_PIN_RESET);
 			HAL_GPIO_WritePin(powerUSBHub_GPIO_Port, powerUSBHub_Pin, GPIO_PIN_RESET);
 			HAL_GPIO_WritePin(amplifireOutput_GPIO_Port, amplifireOutput_Pin, GPIO_PIN_RESET);
 			HAL_GPIO_WritePin(fan_GPIO_Port,fan_Pin, GPIO_PIN_RESET);
+			
 
 		}else
 		{
@@ -452,13 +452,11 @@ int main(void)
 				HAL_GPIO_WritePin(power12V_GPIO_Port, power12V_Pin, GPIO_PIN_SET);
 			}
 			
-			//HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_SET);
-			//HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_SET);	
-			//HAL_GPIO_WritePin(switchRTDoutput_GPIO_Port, switchRTDoutput_Pin, GPIO_PIN_SET);
 			HAL_GPIO_WritePin(standbySoundModuleAmpOutput_GPIO_Port, standbySoundModuleAmpOutput_Pin, GPIO_PIN_SET);
 			HAL_GPIO_WritePin(muteOutput_GPIO_Port, muteOutput_Pin, GPIO_PIN_SET);		
 			HAL_GPIO_WritePin(powerUSBHub_GPIO_Port, powerUSBHub_Pin, GPIO_PIN_SET);
 			HAL_GPIO_WritePin(fan_GPIO_Port,fan_Pin, GPIO_PIN_SET);
+			//HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_SET);
 			HAL_GPIO_WritePin(power12V_GPIO_Port, power12V_Pin, GPIO_PIN_SET);
 		}
 
@@ -497,7 +495,7 @@ int main(void)
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
-	
+		
   }
   /* USER CODE END 3 */
 

@@ -32,7 +32,7 @@ void checkMode(){
 			pt2313_buffer[5]=arrayToInt_withIndex_soundValues(secondTypeAUDIO_mode, 0);	
 		if(radioAntenaState){
 			if(pt2313_buffer[5]!=90 && pt2313_buffer[5]!=94 && pt2313_buffer[5]!=86 && pt2313_buffer[5]!=78 && pt2313_buffer[5]!=70 && pt2313_buffer[5]!=66 &&
-				pt2313_buffer[5]!=74 && pt2313_buffer[5]!=82){
+				pt2313_buffer[5]!=74 && pt2313_buffer[5]!=82){// check radio state for disable radio Antenna
 				HAL_GPIO_WritePin(antennaOutput_GPIO_Port, antennaOutput_Pin, GPIO_PIN_RESET);
 				radioAntenaState = false;
 			}
