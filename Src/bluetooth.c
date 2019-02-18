@@ -187,7 +187,10 @@ void bluetoothCall(){
 	}
 	
 	if(areEqual(checkStatus, secondType, 0, 3)){						//check Status call
+		
+		//custom_delay(700);
 		HAL_UART_Transmit(&huart2, "AT#CY\r", 6, uart_timeout);
+		
 		return;
 		
 	}else if(areEqual(reject, secondType, 0, 3)){			//reject

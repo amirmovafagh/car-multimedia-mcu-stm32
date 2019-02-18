@@ -74,7 +74,7 @@ bool carLightState = false;
 
 //uint8_t buffer[8]={0x00, 0x00, 0x00, 0x63, 0x04, 0x23, 0x12, 0x15}; 
 uint8_t pt2313_buffer[8]=
-{30,//mainVolume
+{15,//mainVolume
 192,//LeftFront 223-192
 224,//RightFront 255-224
 128,//LeftRear 159-128
@@ -221,13 +221,13 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){//recive from uart1
 				if(avTVinputState){
 					
 					
-					pt2313_buffer[5]=93;
-					HAL_I2C_Master_Transmit(&hi2c1,soundModuleI2CAddress,pt2313_buffer,8, i2c_timeout);
+					//pt2313_buffer[5]=93;
+					//HAL_I2C_Master_Transmit(&hi2c1,soundModuleI2CAddress,pt2313_buffer,8, i2c_timeout);
 					HAL_GPIO_WritePin(switchRTDoutput_GPIO_Port, switchRTDoutput_Pin, GPIO_PIN_RESET);// back to hdmi
 					avTVinputState = false;
 				}else{
-					pt2313_buffer[5]=64;
-					HAL_I2C_Master_Transmit(&hi2c1,soundModuleI2CAddress,pt2313_buffer,8, i2c_timeout);
+					//pt2313_buffer[5]=64;
+					//HAL_I2C_Master_Transmit(&hi2c1,soundModuleI2CAddress,pt2313_buffer,8, i2c_timeout);
 					avTVinputState = true;
 					HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_SET);
 					HAL_GPIO_WritePin(switchRTDoutput_GPIO_Port, switchRTDoutput_Pin, GPIO_PIN_SET);// set On Tv
@@ -409,14 +409,13 @@ int main(void)
   /* USER CODE BEGIN WHILE */
 	
 	
-	HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_SET); //set headUnit Off for first time installing and on with first acc power on
+	//HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_SET); //set headUnit Off for first time installing and on with first acc power on
 
 	if(checkDeviceI2cConnection(soundModuleI2CAddress)){
 		
 		HAL_I2C_Master_Transmit(&hi2c1,soundModuleI2CAddress,pt2313_buffer,7, i2c_timeout);
 }
- 	
-    
+
 		HAL_UART_Transmit (&huart1, (uint8_t*)"RUN", 3, uart_timeout);
   while (1)
   {
@@ -439,6 +438,11 @@ int main(void)
 			HAL_GPIO_WritePin(amplifireOutput_GPIO_Port, amplifireOutput_Pin, GPIO_PIN_RESET);
 			HAL_GPIO_WritePin(fan_GPIO_Port,fan_Pin, GPIO_PIN_RESET);
 			
+			if(firstRun){ //if the acc swith off to on and the pt2313 will turn on and must set values 
+				HAL_I2C_Master_Transmit(&hi2c1,soundModuleI2CAddress,pt2313_buffer,8, i2c_timeout);
+				HAL_UART_Transmit (&huart1, (uint8_t*)"RUN", 3, uart_timeout);
+				firstRun = false;
+			}
 
 		}else
 		{
@@ -456,7 +460,7 @@ int main(void)
 			HAL_GPIO_WritePin(muteOutput_GPIO_Port, muteOutput_Pin, GPIO_PIN_SET);		
 			HAL_GPIO_WritePin(powerUSBHub_GPIO_Port, powerUSBHub_Pin, GPIO_PIN_SET);
 			HAL_GPIO_WritePin(fan_GPIO_Port,fan_Pin, GPIO_PIN_SET);
-			//HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_SET);
 			HAL_GPIO_WritePin(power12V_GPIO_Port, power12V_Pin, GPIO_PIN_SET);
 		}
 
@@ -489,7 +493,7 @@ int main(void)
 				carLightState = false;
 				TIM2->CCR1 = pwmValue;
 			}
-		}
+		}else firstRun = true;
 	
 
   /* USER CODE END WHILE */
@@ -720,7 +724,7 @@ static void MX_USART2_UART_Init(void)
 {
 
   huart2.Instance = USART2;
-  huart2.Init.BaudRate = 115200;
+  huart2.Init.BaudRate = 19200;
   huart2.Init.WordLength = UART_WORDLENGTH_8B;
   huart2.Init.StopBits = UART_STOPBITS_1;
   huart2.Init.Parity = UART_PARITY_NONE;
