@@ -20,12 +20,12 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 				ADC_result[0] =ADC_sum / ADC_counter;
 			if(ADC_counter > 200){
 				uint8_t ADC_buffer_send[4];
-				for(int i=0; i<3000000 ; i++){}
+				custom_delay(300);
 				ADC_buffer_send[3] = (( ADC_result[0] / 1 ) % 10) + '0';
 				ADC_buffer_send[2] = (( ADC_result[0] / 10 ) % 10) + '0';
 				ADC_buffer_send[1] = (( ADC_result[0] / 100 ) % 10) + '0';
 				ADC_buffer_send[0] = (( ADC_result[0] / 1000 ) % 10) + '0';
-					HAL_IWDG_Refresh(&hiwdg);
+				HAL_IWDG_Refresh(&hiwdg);
 					
 				HAL_UART_Transmit (&huart1, ADC_buffer_send, 4, uart_timeout);
 			}

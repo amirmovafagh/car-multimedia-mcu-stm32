@@ -1,7 +1,6 @@
 multimedia v2-1\radio.o: ..\Src\radio.c
 multimedia v2-1\radio.o: ..\Src\config.h
 multimedia v2-1\radio.o: ../Inc/main.h
-multimedia v2-1\radio.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdbool.h
 multimedia v2-1\radio.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h
 multimedia v2-1\radio.o: ../Inc/stm32f1xx_hal_conf.h
 multimedia v2-1\radio.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_rcc.h
@@ -32,3 +31,4 @@ multimedia v2-1\radio.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h
 multimedia v2-1\radio.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h
 multimedia v2-1\radio.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h
 multimedia v2-1\radio.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h
+multimedia v2-1\radio.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdbool.h

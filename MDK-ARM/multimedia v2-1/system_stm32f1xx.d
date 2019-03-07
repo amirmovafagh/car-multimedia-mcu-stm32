@@ -9,7 +9,6 @@ multimedia v2-1\system_stm32f1xx.o: ../Drivers/CMSIS/Include/core_cmFunc.h
 multimedia v2-1\system_stm32f1xx.o: ../Drivers/CMSIS/Device/ST/STM32F1xx/Include/system_stm32f1xx.h
 multimedia v2-1\system_stm32f1xx.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h
 multimedia v2-1\system_stm32f1xx.o: ../Inc/stm32f1xx_hal_conf.h
-multimedia v2-1\system_stm32f1xx.o: ../Inc/main.h
 multimedia v2-1\system_stm32f1xx.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_rcc.h
 multimedia v2-1\system_stm32f1xx.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_def.h
 multimedia v2-1\system_stm32f1xx.o: ../Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f1xx.h

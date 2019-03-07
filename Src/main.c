@@ -1,4 +1,4 @@
-
+/* USER CODE BEGIN Header */
 /**
   ******************************************************************************
   * @file           : main.c
@@ -36,16 +36,33 @@
   *
   ******************************************************************************
   */
+/* USER CODE END Header */
+
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "stm32f1xx_hal.h"
 
+/* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "stdbool.h"
 
 
 
 /* USER CODE END Includes */
+
+/* Private typedef -----------------------------------------------------------*/
+/* USER CODE BEGIN PTD */
+
+/* USER CODE END PTD */
+
+/* Private define ------------------------------------------------------------*/
+/* USER CODE BEGIN PD */
+
+/* USER CODE END PD */
+
+/* Private macro -------------------------------------------------------------*/
+/* USER CODE BEGIN PM */
+
+/* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
@@ -66,10 +83,14 @@ GPIO_PinState acciPinState, reverseGearPinState, carLightLampPinState;
 	
 /* Private variables ---------------------------------------------------------*/
 HAL_StatusTypeDef readAdc;
-bool debugState = false;
+bool debugState = true;
 bool avTVinputState = false;
 bool carLightState = false;
-
+bool radioAntenaState = false;
+bool avCameraInputState = false;
+bool accState = false;
+bool firstRun = true;
+bool resetDelay = true;
 
 
 //uint8_t buffer[8]={0x00, 0x00, 0x00, 0x63, 0x04, 0x23, 0x12, 0x15}; 
@@ -88,7 +109,7 @@ int i2c_timeout = 2;
 int uart_timeout = 10;
 
 uint32_t TimCall = 0;
-HAL_StatusTypeDef init;
+HAL_StatusTypeDef init = HAL_BUSY;
 
 
 int rx_index=0;
@@ -96,16 +117,13 @@ int rx_index=0;
 uint8_t rx_data;
 uint8_t rx_buffer[32];
 
-bool radioAntenaState = false;
-bool avCameraInputState = false;
-bool accState = false;
-bool firstRun = true;
 
 
 
 
 
-uint16_t soundModuleI2CAddress = 0x88;
+
+uint16_t soundModuleI2CAddress = 0x89;
 uint16_t RadioModuleI2CAddress = 0xC0;
 
 
@@ -133,10 +151,6 @@ static void MX_ADC1_Init(void);
 static void MX_IWDG_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_NVIC_Init(void);
-
-void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
-                                
-
 /* USER CODE BEGIN PFP */
 
 void custom_delay(uint32_t milliseconds);
@@ -191,7 +205,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){//recive from uart1
     {
             
       //VOICE CHANNEL SWITCHING
-      if(areEqual(mode, rx_buffer,0,3)){
+      if(areEqual(mode, rx_buffer,0,3) && accState){//sound module is on checked with acc state
         checkMode();
 				rx_index = 0;
 				return;
@@ -199,11 +213,12 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){//recive from uart1
       }
       
       //AUDIO SECTION
-      if(areEqual(audio, rx_buffer,0 , 3)){
+      if(areEqual(audio, rx_buffer,0 , 3) && accState){
         checkAudio();
 				rx_index = 0;
 				return;
-      }else if(areEqual(radio, rx_buffer,0 , 3)){  //Radio SECTION
+      }
+			if(areEqual(radio, rx_buffer,0 , 3)&& accState){  //Radio SECTION
 				checkRadio();
 				rx_index = 0;
 				return;
@@ -222,12 +237,12 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){//recive from uart1
 					
 					
 					//pt2313_buffer[5]=93;
-					//HAL_I2C_Master_Transmit(&hi2c1,soundModuleI2CAddress,pt2313_buffer,8, i2c_timeout);
+					
 					HAL_GPIO_WritePin(switchRTDoutput_GPIO_Port, switchRTDoutput_Pin, GPIO_PIN_RESET);// back to hdmi
 					avTVinputState = false;
 				}else{
 					//pt2313_buffer[5]=64;
-					//HAL_I2C_Master_Transmit(&hi2c1,soundModuleI2CAddress,pt2313_buffer,8, i2c_timeout);
+					
 					avTVinputState = true;
 					HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_SET);
 					HAL_GPIO_WritePin(switchRTDoutput_GPIO_Port, switchRTDoutput_Pin, GPIO_PIN_SET);// set On Tv
@@ -314,7 +329,7 @@ int arrayToInt_withIndex_soundValues(uint8_t mArr[],int index){//converting reci
 	
 }
 
-int arrayToInt_withIndex_radioValues(uint8_t mArr[],int index){//converting recived string data from android to INT for sound values
+int arrayToInt_withIndex_radioValues(uint8_t mArr[],int index){//converting recived string data from android to INT for radio values
   int b,o,n,k,j;
 	if(index == 0 || index == 7){
 		k= (mArr[index]-'0');
@@ -332,19 +347,40 @@ int arrayToInt_withIndex_radioValues(uint8_t mArr[],int index){//converting reci
 
 bool checkDeviceI2cConnection(uint16_t DevAddress){//check I2c connection situation with i2c modules
 	
-	init=HAL_I2C_IsDeviceReady(&hi2c1,DevAddress,1,10);
 	
-	if(init == HAL_OK){
+	/* Checks if target device is ready for communication. */
+	/* 64 is number of trials, 1000ms is timeout */
+	  
+	
+	if(HAL_I2C_IsDeviceReady(&hi2c1,DevAddress,100,500) == HAL_OK){
 		return true;
 	}else return false;
 }
 
 
+/*void Write_Buff_To_InternalFlash(u8 data_in[],u32 start_addr,unsigned int len)
+{
+ unsigned int i;
+
+ if((start_addr - 0x8000000)%0x800==0) //Erase new page if data locate at new page
+ {
+  FLASH_UnlockBank1();
+	
+  FLASH_ErasePage(start_addr);
+ } 
+ for(i = 0;i<len;i++) FLASH_ProgramWord(start_addr+4*i, data_in[i]);
+} 
+void Read_Buff_From_InternalFlash(u8 data_out[],u32 start_addr,unsigned int len)
+{
+ unsigned int i;
+ for(i = 0;i<len;i++ ) data_out[i] = (unsigned char)(Readflash(start_addr+4*i));
+}*/
 
 /* Private function prototypes -----------------------------------------------*/
 
 /* USER CODE END PFP */
 
+/* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
 
@@ -353,18 +389,16 @@ bool checkDeviceI2cConnection(uint16_t DevAddress){//check I2c connection situat
 
 /**
   * @brief  The application entry point.
-  *
-  * @retval None
+  * @retval int
   */
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	HAL_GPIO_WritePin( GPIOB, GPIO_PIN_14, GPIO_PIN_SET);
 
 
   /* USER CODE END 1 */
 
-  /* MCU Configuration----------------------------------------------------------*/
+  /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
@@ -409,100 +443,126 @@ int main(void)
   /* USER CODE BEGIN WHILE */
 	
 	
-	//HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_SET); //set headUnit Off for first time installing and on with first acc power on
-
-	if(checkDeviceI2cConnection(soundModuleI2CAddress)){
-		
-		HAL_I2C_Master_Transmit(&hi2c1,soundModuleI2CAddress,pt2313_buffer,7, i2c_timeout);
-}
-
-		HAL_UART_Transmit (&huart1, (uint8_t*)"RUN", 3, uart_timeout);
+	HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_RESET); //set headUnit Off for first time installing and on with first acc power on
+	HAL_GPIO_WritePin(muteOutput_GPIO_Port, muteOutput_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(fan_GPIO_Port,fan_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(power12V_GPIO_Port, power12V_Pin, GPIO_PIN_SET);
+	TIM2->CCR1 = 0;
+	custom_delay(1000);
+	HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_SET);
+	custom_delay(16000);
+	
+	/* check i2c Addresses 
+	for(int i = 0 ; i < 255 ;i++){
+						if(HAL_I2C_IsDeviceReady(&hi2c1,i,10	,1000) == HAL_OK){
+						custom_delay(1000);
+					}
+					}
+	*/
+	//HAL_UART_Transmit (&huart1, (uint8_t*)"RUN", 3, uart_timeout);
   while (1)
   {
-		//HAL_Delay(30000); //check watchDog
-		HAL_IWDG_Refresh(&hiwdg); //watch dog with down init 30 seconds need to reset
-	
-		carLightLampPinState = HAL_GPIO_ReadPin(GPIOA,lampDetectInput_Pin); //check car light_lamp state9
-		reverseGearPinState = HAL_GPIO_ReadPin(GPIOA,rearCameraInput_Pin); //check reverse gear state
-		acciPinState = HAL_GPIO_ReadPin(GPIOA,accInput_Pin); //check Switch On state
+		
+		//if mcu was reseted this handle while loop for a little time
+		if(!resetDelay){
+		
+				//HAL_Delay(30000); //check watchDog
+			HAL_IWDG_Refresh(&hiwdg); //watch dog with down init 30 seconds need to reset
 
-		if(acciPinState == GPIO_PIN_RESET)//GPIO_PIN_1
-		{
-			accState = true;
-			
-			HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(power12V_GPIO_Port, power12V_Pin, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(standbySoundModuleAmpOutput_GPIO_Port, standbySoundModuleAmpOutput_Pin, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(muteOutput_GPIO_Port, muteOutput_Pin, GPIO_PIN_RESET);		
-			HAL_GPIO_WritePin(powerUSBHub_GPIO_Port, powerUSBHub_Pin, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(amplifireOutput_GPIO_Port, amplifireOutput_Pin, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(fan_GPIO_Port,fan_Pin, GPIO_PIN_RESET);
-			
-			if(firstRun){ //if the acc swith off to on and the pt2313 will turn on and must set values 
-				HAL_I2C_Master_Transmit(&hi2c1,soundModuleI2CAddress,pt2313_buffer,8, i2c_timeout);
-				HAL_UART_Transmit (&huart1, (uint8_t*)"RUN", 3, uart_timeout);
-				firstRun = false;
-			}
+			carLightLampPinState = HAL_GPIO_ReadPin(GPIOA,lampDetectInput_Pin); //check car light_lamp state9
+			reverseGearPinState = HAL_GPIO_ReadPin(GPIOA,rearCameraInput_Pin); //check reverse gear state
+			acciPinState = HAL_GPIO_ReadPin(GPIOA,accInput_Pin); //check Switch On state
 
-		}else
-		{
-			accState = false;
-			if(avCameraInputState){
-				avCameraInputState = false;
-				HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_SET);
-				custom_delay(5000); //waiting for switch mode av to hdmi
-			}else 
+			if(acciPinState == GPIO_PIN_RESET)//GPIO_PIN_1
 			{
+				accState = true;
+				
 				HAL_GPIO_WritePin(power12V_GPIO_Port, power12V_Pin, GPIO_PIN_SET);
-			}
-			
-			HAL_GPIO_WritePin(standbySoundModuleAmpOutput_GPIO_Port, standbySoundModuleAmpOutput_Pin, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(muteOutput_GPIO_Port, muteOutput_Pin, GPIO_PIN_SET);		
-			HAL_GPIO_WritePin(powerUSBHub_GPIO_Port, powerUSBHub_Pin, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(fan_GPIO_Port,fan_Pin, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(power12V_GPIO_Port, power12V_Pin, GPIO_PIN_SET);
-		}
-
-		if(accState){
-			if(reverseGearPinState == GPIO_PIN_SET && !avTVinputState)
+				HAL_GPIO_WritePin(powerUSBHub_GPIO_Port, powerUSBHub_Pin, GPIO_PIN_SET);
+				HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_SET);				
+				//HAL_GPIO_WritePin(amplifireOutput_GPIO_Port, amplifireOutput_Pin, GPIO_PIN_SET);
+				//HAL_GPIO_WritePin(fan_GPIO_Port,fan_Pin, GPIO_PIN_SET);
+				if(firstRun){ //if the acc swith off to on and the pt2313 will turn on and must set values	
+					__HAL_IWDG_START(&hiwdg);
+					HAL_GPIO_WritePin(standbySoundModuleAmpOutput_GPIO_Port, standbySoundModuleAmpOutput_Pin, GPIO_PIN_RESET);// must wait for noise gone
+					HAL_GPIO_WritePin(fan_GPIO_Port,fan_Pin, GPIO_PIN_SET);
+					TIM2->CCR1 = 0;
+					custom_delay(4000);
+					
+					if(HAL_I2C_IsDeviceReady(&hi2c1,soundModuleI2CAddress,10	,1000) == HAL_OK){
+						HAL_I2C_Master_Transmit(&hi2c1,soundModuleI2CAddress,pt2313_buffer,8, i2c_timeout);
+					}
+					custom_delay(1000);
+					HAL_GPIO_WritePin(muteOutput_GPIO_Port, muteOutput_Pin, GPIO_PIN_RESET);
+					HAL_UART_Transmit (&huart1, (uint8_t*)"RUN", 3, uart_timeout);
+					firstRun = false;
+				}
+				
+			}else
 			{
-				avCameraInputState = false;
-				HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_SET);
-			}else{
-				avCameraInputState = true;
-				HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_RESET); // with 0 switch will be on and set on AV
+				accState = false;
+				HAL_GPIO_WritePin(muteOutput_GPIO_Port, muteOutput_Pin, GPIO_PIN_SET);
+				custom_delay(1000);
+				if(avCameraInputState){
+					avCameraInputState = false;
+					HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_SET);
+					custom_delay(4000); //waiting for switch mode av to hdmi
+				}else 
+				{
+					HAL_GPIO_WritePin(power12V_GPIO_Port, power12V_Pin, GPIO_PIN_RESET);
+				}
+				
+				HAL_GPIO_WritePin(standbySoundModuleAmpOutput_GPIO_Port, standbySoundModuleAmpOutput_Pin, GPIO_PIN_SET);
+				HAL_GPIO_WritePin(antennaOutput_GPIO_Port, antennaOutput_Pin, GPIO_PIN_RESET);
+				//HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_RESET);
+				HAL_GPIO_WritePin(powerUSBHub_GPIO_Port, powerUSBHub_Pin, GPIO_PIN_RESET);
+				HAL_GPIO_WritePin(power12V_GPIO_Port, power12V_Pin, GPIO_PIN_RESET);
+				
 			}
-			
-			if(avTVinputState){
-				if(reverseGearPinState == GPIO_PIN_SET )
+
+			if(accState){
+				if(reverseGearPinState == GPIO_PIN_SET && !avTVinputState)
 				{
 					avCameraInputState = false;
-					//avTVinputState = false;
-					HAL_GPIO_WritePin(switchRTDoutput_GPIO_Port, switchRTDoutput_Pin, GPIO_PIN_SET);//Switch from camera to tv 
+					HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_SET);
 				}else{
 					avCameraInputState = true;
-					HAL_GPIO_WritePin(switchRTDoutput_GPIO_Port, switchRTDoutput_Pin, GPIO_PIN_RESET); //Switch from tv to camera	
+					HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_RESET); // with 0 switch will be on and set on AV
 				}
-			}
-			if(carLightLampPinState == GPIO_PIN_RESET){ //check car light state and change the brightness
-				carLightState = true;
-				//custom_delay(1000);
-				TIM2->CCR1 = pwmValueLightOn;
-			}else {
-				carLightState = false;
-				TIM2->CCR1 = pwmValue;
-			}
-		}else firstRun = true;
+				
+				if(avTVinputState){
+					if(reverseGearPinState == GPIO_PIN_SET )
+					{
+						avCameraInputState = false;
+						
+						HAL_GPIO_WritePin(switchRTDoutput_GPIO_Port, switchRTDoutput_Pin, GPIO_PIN_SET);//Switch from camera to tv 
+					}else{
+						avCameraInputState = true;
+						HAL_GPIO_WritePin(switchRTDoutput_GPIO_Port, switchRTDoutput_Pin, GPIO_PIN_RESET); //Switch from tv to camera	
+					}
+				}
+				if(carLightLampPinState == GPIO_PIN_RESET){ //check car light state and change the brightness
+					carLightState = true;
+					TIM2->CCR1 = pwmValueLightOn;
+				}else {
+					carLightState = false;
+					TIM2->CCR1 = pwmValue;
+				}
+			}else firstRun = true;
+		}else{
+			HAL_IWDG_Refresh(&hiwdg);
+			custom_delay(2000);
+			resetDelay = false;
+		}
+		
 	
 
-  /* USER CODE END WHILE */
+    /* USER CODE END WHILE */
 
-  /* USER CODE BEGIN 3 */
+    /* USER CODE BEGIN 3 */
 		
   }
   /* USER CODE END 3 */
-
 }
 
 /**
@@ -511,13 +571,12 @@ int main(void)
   */
 void SystemClock_Config(void)
 {
+  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
-  RCC_OscInitTypeDef RCC_OscInitStruct;
-  RCC_ClkInitTypeDef RCC_ClkInitStruct;
-  RCC_PeriphCLKInitTypeDef PeriphClkInit;
-
-    /**Initializes the CPU, AHB and APB busses clocks 
-    */
+  /**Initializes the CPU, AHB and APB busses clocks 
+  */
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
@@ -528,11 +587,10 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
-    _Error_Handler(__FILE__, __LINE__);
+    Error_Handler();
   }
-
-    /**Initializes the CPU, AHB and APB busses clocks 
-    */
+  /**Initializes the CPU, AHB and APB busses clocks 
+  */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
@@ -542,26 +600,14 @@ void SystemClock_Config(void)
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
   {
-    _Error_Handler(__FILE__, __LINE__);
+    Error_Handler();
   }
-
   PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC;
   PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV6;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
-    _Error_Handler(__FILE__, __LINE__);
+    Error_Handler();
   }
-
-    /**Configure the Systick interrupt time 
-    */
-  HAL_SYSTICK_Config(HAL_RCC_GetHCLKFreq()/1000);
-
-    /**Configure the Systick 
-    */
-  HAL_SYSTICK_CLKSourceConfig(SYSTICK_CLKSOURCE_HCLK);
-
-  /* SysTick_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
 }
 
 /**
@@ -575,14 +621,25 @@ static void MX_NVIC_Init(void)
   HAL_NVIC_EnableIRQ(USART1_IRQn);
 }
 
-/* ADC1 init function */
+/**
+  * @brief ADC1 Initialization Function
+  * @param None
+  * @retval None
+  */
 static void MX_ADC1_Init(void)
 {
 
-  ADC_ChannelConfTypeDef sConfig;
+  /* USER CODE BEGIN ADC1_Init 0 */
 
-    /**Common config 
-    */
+  /* USER CODE END ADC1_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC1_Init 1 */
+
+  /* USER CODE END ADC1_Init 1 */
+  /**Common config 
+  */
   hadc1.Instance = ADC1;
   hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
   hadc1.Init.ContinuousConvMode = ENABLE;
@@ -592,34 +649,46 @@ static void MX_ADC1_Init(void)
   hadc1.Init.NbrOfConversion = 2;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
   {
-    _Error_Handler(__FILE__, __LINE__);
+    Error_Handler();
   }
-
-    /**Configure Regular Channel 
-    */
+  /**Configure Regular Channel 
+  */
   sConfig.Channel = ADC_CHANNEL_0;
   sConfig.Rank = ADC_REGULAR_RANK_1;
   sConfig.SamplingTime = ADC_SAMPLETIME_239CYCLES_5;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
-    _Error_Handler(__FILE__, __LINE__);
+    Error_Handler();
   }
-
-    /**Configure Regular Channel 
-    */
+  /**Configure Regular Channel 
+  */
   sConfig.Channel = ADC_CHANNEL_TEMPSENSOR;
   sConfig.Rank = ADC_REGULAR_RANK_2;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
-    _Error_Handler(__FILE__, __LINE__);
+    Error_Handler();
   }
+  /* USER CODE BEGIN ADC1_Init 2 */
+
+  /* USER CODE END ADC1_Init 2 */
 
 }
 
-/* I2C1 init function */
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
 static void MX_I2C1_Init(void)
 {
 
+  /* USER CODE BEGIN I2C1_Init 0 */
+	__HAL_RCC_I2C1_CLK_ENABLE();
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
   hi2c1.Init.ClockSpeed = 100000;
   hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
@@ -629,81 +698,115 @@ static void MX_I2C1_Init(void)
   hi2c1.Init.OwnAddress2 = 0;
   hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
   hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
+  HAL_I2C_Init(&hi2c1);
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
 
 }
 
-/* IWDG init function */
+/**
+  * @brief IWDG Initialization Function
+  * @param None
+  * @retval None
+  */
 static void MX_IWDG_Init(void)
 {
 
+  /* USER CODE BEGIN IWDG_Init 0 */
+
+  /* USER CODE END IWDG_Init 0 */
+
+  /* USER CODE BEGIN IWDG_Init 1 */
+
+  /* USER CODE END IWDG_Init 1 */
   hiwdg.Instance = IWDG;
   hiwdg.Init.Prescaler = IWDG_PRESCALER_256;
   hiwdg.Init.Reload = 4095;
   if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
   {
-    _Error_Handler(__FILE__, __LINE__);
+    Error_Handler();
   }
+  /* USER CODE BEGIN IWDG_Init 2 */
+
+  /* USER CODE END IWDG_Init 2 */
 
 }
 
-/* TIM2 init function */
+/**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
 static void MX_TIM2_Init(void)
 {
 
-  TIM_ClockConfigTypeDef sClockSourceConfig;
-  TIM_MasterConfigTypeDef sMasterConfig;
-  TIM_OC_InitTypeDef sConfigOC;
+  /* USER CODE BEGIN TIM2_Init 0 */
 
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 69;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 113;
+  htim2.Init.Period = 110;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
   {
-    _Error_Handler(__FILE__, __LINE__);
+    Error_Handler();
   }
-
   sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
   if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
   {
-    _Error_Handler(__FILE__, __LINE__);
+    Error_Handler();
   }
-
   if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
   {
-    _Error_Handler(__FILE__, __LINE__);
+    Error_Handler();
   }
-
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
   {
-    _Error_Handler(__FILE__, __LINE__);
+    Error_Handler();
   }
-
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
   sConfigOC.Pulse = 0;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_LOW;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
   {
-    _Error_Handler(__FILE__, __LINE__);
+    Error_Handler();
   }
+  /* USER CODE BEGIN TIM2_Init 2 */
 
+  /* USER CODE END TIM2_Init 2 */
   HAL_TIM_MspPostInit(&htim2);
 
 }
 
-/* USART1 init function */
+/**
+  * @brief USART1 Initialization Function
+  * @param None
+  * @retval None
+  */
 static void MX_USART1_UART_Init(void)
 {
 
+  /* USER CODE BEGIN USART1_Init 0 */
+
+  /* USER CODE END USART1_Init 0 */
+
+  /* USER CODE BEGIN USART1_Init 1 */
+
+  /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
   huart1.Init.BaudRate = 19200;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
@@ -714,15 +817,29 @@ static void MX_USART1_UART_Init(void)
   huart1.Init.OverSampling = UART_OVERSAMPLING_16;
   if (HAL_UART_Init(&huart1) != HAL_OK)
   {
-    _Error_Handler(__FILE__, __LINE__);
+    Error_Handler();
   }
+  /* USER CODE BEGIN USART1_Init 2 */
+
+  /* USER CODE END USART1_Init 2 */
 
 }
 
-/* USART2 init function */
+/**
+  * @brief USART2 Initialization Function
+  * @param None
+  * @retval None
+  */
 static void MX_USART2_UART_Init(void)
 {
 
+  /* USER CODE BEGIN USART2_Init 0 */
+
+  /* USER CODE END USART2_Init 0 */
+
+  /* USER CODE BEGIN USART2_Init 1 */
+
+  /* USER CODE END USART2_Init 1 */
   huart2.Instance = USART2;
   huart2.Init.BaudRate = 19200;
   huart2.Init.WordLength = UART_WORDLENGTH_8B;
@@ -733,8 +850,11 @@ static void MX_USART2_UART_Init(void)
   huart2.Init.OverSampling = UART_OVERSAMPLING_16;
   if (HAL_UART_Init(&huart2) != HAL_OK)
   {
-    _Error_Handler(__FILE__, __LINE__);
+    Error_Handler();
   }
+  /* USER CODE BEGIN USART2_Init 2 */
+
+  /* USER CODE END USART2_Init 2 */
 
 }
 
@@ -753,17 +873,14 @@ static void MX_DMA_Init(void)
 
 }
 
-/** Configure pins as 
-        * Analog 
-        * Input 
-        * Output
-        * EVENT_OUT
-        * EXTI
-*/
+/**
+  * @brief GPIO Initialization Function
+  * @param None
+  * @retval None
+  */
 static void MX_GPIO_Init(void)
 {
-
-  GPIO_InitTypeDef GPIO_InitStruct;
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
@@ -777,10 +894,13 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, standbySoundModuleAmpOutput_Pin|muteOutput_Pin|switchRTDoutput_Pin|fan_Pin 
                           |power12V_Pin|powerUSBHub_Pin|ledRedOutput_Pin|ledGreenOutput_Pin 
-                          |amplifireOutput_Pin|accRTDoutput_Pin, GPIO_PIN_RESET);
+                          |amplifireOutput_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_SET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin : antennaOutput_Pin */
   GPIO_InitStruct.Pin = antennaOutput_Pin;
@@ -821,11 +941,9 @@ static void MX_GPIO_Init(void)
 
 /**
   * @brief  This function is executed in case of error occurrence.
-  * @param  file: The file name as string.
-  * @param  line: The line in file as a number.
   * @retval None
   */
-void _Error_Handler(char *file, int line)
+void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
@@ -843,7 +961,7 @@ void _Error_Handler(char *file, int line)
   * @param  line: assert_param error line source number
   * @retval None
   */
-void assert_failed(uint8_t* file, uint32_t line)
+void assert_failed(uint8_t *file, uint32_t line)
 { 
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,
@@ -851,13 +969,5 @@ void assert_failed(uint8_t* file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
-
-/**
-  * @}
-  */
-
-/**
-  * @}
-  */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

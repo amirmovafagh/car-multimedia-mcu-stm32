@@ -1,7 +1,7 @@
 #include "config.h"
 
 void checkMode(){
-	if(checkDeviceI2cConnection(soundModuleI2CAddress)){
+	if(HAL_I2C_IsDeviceReady(&hi2c1,soundModuleI2CAddress,10	,1000) == HAL_OK){
 		HAL_GPIO_WritePin(muteOutput_GPIO_Port, muteOutput_Pin, GPIO_PIN_RESET);
 //		static uint8_t aux[3]={'a','u','x'};
 		static uint8_t brightness[3] ={'b','r','g'};
@@ -54,7 +54,7 @@ void checkMode(){
 }
 
 void checkAudio(){                         //Audio Module settings
-	if(checkDeviceI2cConnection(soundModuleI2CAddress)){
+	if(HAL_I2C_IsDeviceReady(&hi2c1,soundModuleI2CAddress,10	,1000) == HAL_OK){
 		
 		uint8_t secondTypeAUDIO[30];
 		
@@ -64,7 +64,8 @@ void checkAudio(){                         //Audio Module settings
 		
 		if(secondTypeAUDIO[10] == 0x00 && secondTypeAUDIO[7] == 0x00){
 			pt2313_buffer[0] = arrayToInt_withIndex_soundValues(secondTypeAUDIO, 0); //volume
-			for(int i = 0 ; i<30000 ; i++){}
+			//for(int i = 0 ; i<30000 ; i++){}
+			
 			HAL_I2C_Master_Transmit(&hi2c1,soundModuleI2CAddress,pt2313_buffer,8, i2c_timeout);
 				return;
 		}
@@ -75,8 +76,9 @@ void checkAudio(){                         //Audio Module settings
 		pt2313_buffer[4] = arrayToInt_withIndex_soundValues(secondTypeAUDIO, 15); //speaker right rear
 		pt2313_buffer[6] = arrayToInt_withIndex_soundValues(secondTypeAUDIO, 19); //change bas
 		pt2313_buffer[7] = arrayToInt_withIndex_soundValues(secondTypeAUDIO, 23); //change treble
-		for(int i = 0 ; i<30000 ; i++){}
+		
 		HAL_I2C_Master_Transmit(&hi2c1,soundModuleI2CAddress,pt2313_buffer,8, i2c_timeout);
+		
 		/*if(buffer[0]==63){
 				HAL_GPIO_WritePin(muto_GPIO_Port,muto_Pin, 1);
 			}else{
