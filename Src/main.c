@@ -166,6 +166,8 @@ int arrayToInt(uint8_t mArr[]);
 int arrayToInt_withIndex_soundValues(uint8_t mArr[],int index);
 int arrayToInt_withIndex_radioValues(uint8_t mArr[],int index);
 bool checkDeviceI2cConnection(uint16_t DevAddress);
+bool reverseGearPinStateFunc (void);
+bool acciPinStateFunc (void);
 
 
 void custom_delay(uint32_t milliseconds) {
@@ -357,24 +359,25 @@ bool checkDeviceI2cConnection(uint16_t DevAddress){//check I2c connection situat
 	}else return false;
 }
 
+bool reverseGearPinStateFunc (){
+	reverseGearPinState = HAL_GPIO_ReadPin(GPIOA,rearCameraInput_Pin); //check reverse gear state
+	if(reverseGearPinState == GPIO_PIN_RESET){
+		return true; //set gear on reverse state
+	}else
+		return false; //not on reverse
+}
 
-/*void Write_Buff_To_InternalFlash(u8 data_in[],u32 start_addr,unsigned int len)
-{
- unsigned int i;
+bool acciPinStateFunc (){
+	acciPinState = HAL_GPIO_ReadPin(GPIOA,accInput_Pin); //check Switch On state
+	if(acciPinState == GPIO_PIN_RESET){
+		accState = true;
+		return true; //switch on
+		}else{
+		accState = false;
+		return false; //off
+		}
+}
 
- if((start_addr - 0x8000000)%0x800==0) //Erase new page if data locate at new page
- {
-  FLASH_UnlockBank1();
-	
-  FLASH_ErasePage(start_addr);
- } 
- for(i = 0;i<len;i++) FLASH_ProgramWord(start_addr+4*i, data_in[i]);
-} 
-void Read_Buff_From_InternalFlash(u8 data_out[],u32 start_addr,unsigned int len)
-{
- unsigned int i;
- for(i = 0;i<len;i++ ) data_out[i] = (unsigned char)(Readflash(start_addr+4*i));
-}*/
 
 /* Private function prototypes -----------------------------------------------*/
 
@@ -450,7 +453,7 @@ int main(void)
 	TIM2->CCR1 = 0;
 	custom_delay(1000);
 	HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_SET);
-	custom_delay(16000);
+	custom_delay(15000);
 	
 	/* check i2c Addresses 
 	for(int i = 0 ; i < 255 ;i++){
@@ -473,7 +476,7 @@ int main(void)
 			reverseGearPinState = HAL_GPIO_ReadPin(GPIOA,rearCameraInput_Pin); //check reverse gear state
 			acciPinState = HAL_GPIO_ReadPin(GPIOA,accInput_Pin); //check Switch On state
 
-			if(acciPinState == GPIO_PIN_RESET)//GPIO_PIN_1
+			if(acciPinStateFunc())//GPIO_PIN_1
 			{
 				accState = true;
 				
@@ -487,14 +490,18 @@ int main(void)
 					HAL_GPIO_WritePin(standbySoundModuleAmpOutput_GPIO_Port, standbySoundModuleAmpOutput_Pin, GPIO_PIN_RESET);// must wait for noise gone
 					HAL_GPIO_WritePin(fan_GPIO_Port,fan_Pin, GPIO_PIN_SET);
 					TIM2->CCR1 = 0;
-					custom_delay(4000);
-					
-					if(HAL_I2C_IsDeviceReady(&hi2c1,soundModuleI2CAddress,10	,1000) == HAL_OK){
+					custom_delay(3000);
+					//if after delay acc state changed to off dont set sound values 
+					if(acciPinStateFunc()){
+						if(HAL_I2C_IsDeviceReady(&hi2c1,soundModuleI2CAddress,10	,1000) == HAL_OK){
 						HAL_I2C_Master_Transmit(&hi2c1,soundModuleI2CAddress,pt2313_buffer,8, i2c_timeout);
+						}
 					}
-					custom_delay(1000);
+					custom_delay(500);
 					HAL_GPIO_WritePin(muteOutput_GPIO_Port, muteOutput_Pin, GPIO_PIN_RESET);
-					HAL_UART_Transmit (&huart1, (uint8_t*)"RUN", 3, uart_timeout);
+					if(acciPinStateFunc()){
+						HAL_UART_Transmit (&huart1, (uint8_t*)"RUN", 3, uart_timeout);
+					}
 					firstRun = false;
 				}
 				
@@ -521,17 +528,17 @@ int main(void)
 			}
 
 			if(accState){
-				if(reverseGearPinState == GPIO_PIN_SET && !avTVinputState)
+				if( !reverseGearPinStateFunc() && !avTVinputState)
 				{
 					avCameraInputState = false;
 					HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_SET);
 				}else{
 					avCameraInputState = true;
-					HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_RESET); // with 0 switch will be on and set on AV
+					HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_RESET); // with 0 switch will be on and set on AV camera input
 				}
 				
 				if(avTVinputState){
-					if(reverseGearPinState == GPIO_PIN_SET )
+					if(!reverseGearPinStateFunc() )
 					{
 						avCameraInputState = false;
 						
