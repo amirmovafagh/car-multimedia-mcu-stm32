@@ -1,10 +1,11 @@
 #include "config.h"
 
 extern int ADC_buffer[2];
-int ADC_result[2];
+int ADC_result[1]; //ADC_result[0]=> controllWheel data ,ADC_result[1]=>internal Temp sensor
 int ADC_average=0;
 int ADC_sum=0;
 int ADC_counter=0;
+
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
@@ -12,9 +13,10 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 	if(hadc->Instance == ADC1){
 		
 		ADC_result[0] = ADC_buffer[0];
-		ADC_result[1] = ADC_buffer[1];
+		Vsense = ADC_buffer[1];
+		
+		//controll Wheel get and send data
 		if(ADC_result[0] < 3350){
-			
 				ADC_sum += ADC_result[0];
 				ADC_counter = ADC_counter+1;
 				ADC_result[0] =ADC_sum / ADC_counter;
@@ -38,5 +40,9 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 			ADC_result[0] = 0;
 			HAL_IWDG_Refresh(&hiwdg);
 		}
+		
+		
+		
+		
 	}
 }

@@ -1,7 +1,6 @@
-multimedia v2-1\stm32f1xx_hal_iwdg.o: ..\Drivers\STM32F1xx_HAL_Driver\Src\stm32f1xx_hal_iwdg.c
+multimedia v2-1\stm32f1xx_hal_iwdg.o: ../Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_iwdg.c
 multimedia v2-1\stm32f1xx_hal_iwdg.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h
 multimedia v2-1\stm32f1xx_hal_iwdg.o: ../Inc/stm32f1xx_hal_conf.h
-multimedia v2-1\stm32f1xx_hal_iwdg.o: ../Inc/main.h
 multimedia v2-1\stm32f1xx_hal_iwdg.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_rcc.h
 multimedia v2-1\stm32f1xx_hal_iwdg.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_def.h
 multimedia v2-1\stm32f1xx_hal_iwdg.o: ../Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f1xx.h
@@ -27,4 +26,6 @@ multimedia v2-1\stm32f1xx_hal_iwdg.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f
 multimedia v2-1\stm32f1xx_hal_iwdg.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_i2c.h
 multimedia v2-1\stm32f1xx_hal_iwdg.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_iwdg.h
 multimedia v2-1\stm32f1xx_hal_iwdg.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h
+multimedia v2-1\stm32f1xx_hal_iwdg.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h
+multimedia v2-1\stm32f1xx_hal_iwdg.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h
 multimedia v2-1\stm32f1xx_hal_iwdg.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h

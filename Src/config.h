@@ -6,7 +6,7 @@ extern int uart_timeout;
 extern int i2c_timeout;
 
 extern bool radioAntenaState;
-extern uint8_t rx_buffer[32];
+extern uint8_t rx_buffer[128];
 extern UART_HandleTypeDef huart2;
 extern UART_HandleTypeDef huart1;
 extern IWDG_HandleTypeDef hiwdg;
@@ -24,6 +24,7 @@ extern uint8_t radio[3];
 extern uint8_t bluetooth[3];
 extern uint8_t debug[3];
 extern bool debugState;
+extern double Vsense;
 
 extern void custom_delay(uint32_t milliseconds);
 extern bool areEqual(uint8_t arr1[], uint8_t arr2[], int i, int n);
@@ -34,6 +35,7 @@ extern void bluetoothSettings(void);
 extern void bluetoothCall(void);
 extern void bluetoothMusic(void);
 extern void checkBluetooth(void);
+extern void checkOtherCommands(void);
 extern int arrayToInt(uint8_t mArr[]);
 extern int arrayToInt_withIndex_soundValues(uint8_t mArr[],int index);
 extern int arrayToInt_withIndex_radioValues(uint8_t mArr[],int index);

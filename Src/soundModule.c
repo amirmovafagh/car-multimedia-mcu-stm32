@@ -4,26 +4,7 @@ void checkMode(){
 	if(HAL_I2C_IsDeviceReady(&hi2c1,soundModuleI2CAddress,10	,1000) == HAL_OK){
 		HAL_GPIO_WritePin(muteOutput_GPIO_Port, muteOutput_Pin, GPIO_PIN_RESET);
 //		static uint8_t aux[3]={'a','u','x'};
-		static uint8_t brightness[3] ={'b','r','g'};
-		uint8_t secondType[3];
-	
-		for(int i=4; i<7; i++){
-			secondType[i-4]=rx_buffer[i];
-		}
-		//HAL_GPIO_WritePin(muto_GPIO_Port,muto_Pin, 1);  // mute befor change mode
-		if(areEqual(secondType, brightness, 0, 3)){
-			for(int i=8; i<12; i++){
-					secondType[i-8]=rx_buffer[i];
-				}
-			int i= arrayToInt(secondType);
-			if(carLightState)
-				i = pwmValueLightOn = 70+i;
-			else
-				i = pwmValue = 70 + i;
-			TIM2->CCR1 = i ;
-			return;
-			
-		}else{
+		
 			uint8_t secondTypeAUDIO_mode[2];
 		
 		for(int i=4; i<6 ; i++){
@@ -43,7 +24,7 @@ void checkMode(){
 				HAL_UART_Transmit (&huart1, (uint8_t*)"mod", 3, uart_timeout);
 			}
 			return;
-		}
+		
 		
 		}else{ 
 			if(debugState){

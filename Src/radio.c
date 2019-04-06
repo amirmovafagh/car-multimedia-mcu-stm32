@@ -253,7 +253,7 @@ displayCheck = freq;
 			 HAL_IWDG_Refresh(&hiwdg);
 		 if(CheckFreq(freq))
 		  {
-				char buffer[16];
+
 				i++;
 				SDATA_BUF[i][0]= freq >> 8;
 				SDATA_BUF[i][1]= freq &0x00ff;

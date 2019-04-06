@@ -336,7 +336,7 @@
               <MiscControls>--C99</MiscControls>
               <Define>USE_HAL_DRIVER,STM32F103xB</Define>
               <Undefine></Undefine>
-              <IncludePath>../Inc;                                                                                ../Drivers/STM32F1xx_HAL_Driver/Inc;                                                                                ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy;                                                                                ../Drivers/CMSIS/Include;                                                                                ../Drivers/CMSIS/Device/ST/STM32F1xx/Include</IncludePath>
+              <IncludePath>../Inc;                                                                                          ../Drivers/STM32F1xx_HAL_Driver/Inc;                                                                                          ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy;                                                                                          ../Drivers/CMSIS/Include;                                                                                          ../Drivers/CMSIS/Device/ST/STM32F1xx/Include</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -476,11 +476,6 @@
               <FilePath>..\Src\config.h</FilePath>
             </File>
             <File>
-              <FileName>bluetooth.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Src\bluetooth.c</FilePath>
-            </File>
-            <File>
               <FileName>radio.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Src\radio.c</FilePath>
@@ -494,6 +489,11 @@
               <FileName>controlWheel.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Src\controlWheel.c</FilePath>
+            </File>
+            <File>
+              <FileName>otherCommands.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\otherCommands.c</FilePath>
             </File>
             <File>
               <FileName>main.c</FileName>
@@ -528,7 +528,7 @@
             <File>
               <FileName>system_stm32f1xx.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..//Src/system_stm32f1xx.c</FilePath>
+              <FilePath>../Src/system_stm32f1xx.c</FilePath>
             </File>
           </Files>
         </Group>

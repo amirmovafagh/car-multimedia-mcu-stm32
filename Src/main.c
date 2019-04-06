@@ -4,37 +4,7 @@
   * @file           : main.c
   * @brief          : Main program body
   ******************************************************************************
-  ** This notice applies to any and all portions of this file
-  * that are not between comment pairs USER CODE BEGIN and
-  * USER CODE END. Other portions of this file, whether 
-  * inserted by the user or by software development tools
-  * are owned by their respective copyright owners.
-  *
-  * COPYRIGHT(c) 2019 STMicroelectronics
-  *
-  * Redistribution and use in source and binary forms, with or without modification,
-  * are permitted provided that the following conditions are met:
-  *   1. Redistributions of source code must retain the above copyright notice,
-  *      this list of conditions and the following disclaimer.
-  *   2. Redistributions in binary form must reproduce the above copyright notice,
-  *      this list of conditions and the following disclaimer in the documentation
-  *      and/or other materials provided with the distribution.
-  *   3. Neither the name of STMicroelectronics nor the names of its contributors
-  *      may be used to endorse or promote products derived from this software
-  *      without specific prior written permission.
-  *
-  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-  * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-  *
-  ******************************************************************************
+  
   */
 /* USER CODE END Header */
 
@@ -84,13 +54,13 @@ GPIO_PinState acciPinState, reverseGearPinState, carLightLampPinState;
 /* Private variables ---------------------------------------------------------*/
 HAL_StatusTypeDef readAdc;
 bool debugState = true;
-bool avTVinputState = false;
-bool carLightState = false;
-bool radioAntenaState = false;
-bool avCameraInputState = false;
-bool accState = false;
-bool firstRun = true;
-bool resetDelay = true;
+bool volatile avTVinputState = false;
+bool volatile carLightState = false;
+bool volatile radioAntenaState = false;
+bool volatile avCameraInputState = false;
+bool volatile accState = false;
+bool volatile firstRun = true;
+bool volatile headUnitCPU_HighTemp = false;
 
 
 //uint8_t buffer[8]={0x00, 0x00, 0x00, 0x63, 0x04, 0x23, 0x12, 0x15}; 
@@ -105,21 +75,26 @@ uint8_t pt2313_buffer[8]=
 112//treble 127-112
 }; 
 
-int i2c_timeout = 2;
+int  i2c_timeout = 2;
 int uart_timeout = 10;
 
 uint32_t TimCall = 0;
 HAL_StatusTypeDef init = HAL_BUSY;
-
-
 int rx_index=0;
+int MCU_SHUTDOWN_TIMER = 0;
+bool fanPermition = true;
+bool fanState = true;
+uint8_t rx_data = 0;
+uint8_t rx_buffer[128];
 
-uint8_t rx_data;
-uint8_t rx_buffer[32];
+uint8_t rx2_data=0;
+uint8_t rx2_buffer[64];
+int rx2_index=0;
 
-
-
-
+double VroomTemp = 1.43;
+double avg_slope = 4.3;
+double Vsense = 0;
+uint32_t temp = 0;
 
 
 
@@ -127,14 +102,30 @@ uint16_t soundModuleI2CAddress = 0x89;
 uint16_t RadioModuleI2CAddress = 0xC0;
 
 
-uint8_t mode[3] = {'m','o','d'};
-uint8_t audio[3] = {'a','u','d'};
-uint8_t radio[3] = {'r','a','d'};
-uint8_t bluetooth[3] = {'b','l','t'};
-uint8_t other[3] = {'o','t','h'};
-uint8_t debug[3] = {'d','b','g'};
+uint8_t mode[3] = {'m','o','d'};			//MODE androidBT , Radio , AUX
+uint8_t audio[3] = {'a','u','d'};			//Audio
+uint8_t radio[3] = {'r','a','d'};			//Radio
+uint8_t bluetooth[3] = {'b','l','t'};	//Bluetooth
+uint8_t other[3] = {'o','t','h'};     //other commads such as brightness , cpu temp , switch av channel
+uint8_t debug[3] = {'d','b','g'};			//Debug
+
+uint8_t rspnsReadyStatus[3]= {'M','G','1'};
+uint8_t rspnsConnectingStatus[3]= {'M','G','2'};
+uint8_t rspnsConnectedStatus[3]= {'M','G','3'};
+uint8_t rspnsOutCallStatus[3]= {'M','G','4'};
+uint8_t rspnsInCallStatus[3]= {'M','G','5'};
+uint8_t rspnsOnCallStatus[3]= {'M','G','6'};
+uint8_t rspnsNum[3]= {'N','U','M'};
+uint8_t rspnsEnterPairing[2]= {'I','I'};
+uint8_t rspnsMusicStart[2]= {'M','B'};
+uint8_t rspnsMusicPause[2]= {'M','P'};
+uint8_t rspnsMusicStop[2]= {'M','A'};
+uint8_t rspnsMusicResume[2]= {'M','R'};
+uint8_t rspnsConnectToDevice[2]= {'I','V'};
+uint8_t rspnsOutgoingCall[2]= {'I','R'};
+
 uint32_t ADC_buffer[2];
-uint32_t temp_val, temperature;
+
 float vsense = 3.3/1023;
 int pwmValue = 130 ; //brightness default value 
 int pwmValueLightOn = 95 ;
@@ -162,12 +153,14 @@ void bluetoothSettings(void);
 void bluetoothCall(void);
 void bluetoothMusic(void);
 void checkBluetooth(void);
+void checkOtherCommands(void);
 int arrayToInt(uint8_t mArr[]);
 int arrayToInt_withIndex_soundValues(uint8_t mArr[],int index);
 int arrayToInt_withIndex_radioValues(uint8_t mArr[],int index);
 bool checkDeviceI2cConnection(uint16_t DevAddress);
 bool reverseGearPinStateFunc (void);
 bool acciPinStateFunc (void);
+void getARMTemp_SetFanState(void);
 
 
 void custom_delay(uint32_t milliseconds) {
@@ -187,16 +180,18 @@ void custom_delay(uint32_t milliseconds) {
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){//recive from uart1
-	HAL_UART_Receive (&huart1, &rx_data, 1, uart_timeout);
+	
   if( huart->Instance == USART1 )
   {    
-    
-    if(rx_index==0 || rx_index==-1)
+    HAL_UART_Receive (&huart1, &rx_data, 1, uart_timeout);
+    if(rx_index==0 || rx_index==-1|| rx_index==0xFF)
     {
-      for(int i=0; i<32; i++)
+      for(int i=0; i<128; i++)
       {
         rx_buffer[i]=0;
+				
       }
+			rx_index==0;
     }
       //if the charcter received is other than'?' ascii 0x3f, save the data in buffer
     if (rx_data != 0x3f)
@@ -214,41 +209,28 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){//recive from uart1
         
       }
       
-      //AUDIO SECTION
-      if(areEqual(audio, rx_buffer,0 , 3) && accState){
+      
+      if(areEqual(audio, rx_buffer,0 , 3) && accState){  //AUDIO SECTION
         checkAudio();
 				rx_index = 0;
 				return;
       }
-			if(areEqual(radio, rx_buffer,0 , 3)&& accState){  //Radio SECTION
+			if(areEqual(radio, rx_buffer,0 , 3) && accState){  //Radio SECTION
 				checkRadio();
 				rx_index = 0;
 				return;
       }
       
-      //BLUeTOOTH SECTION
+      
 			
-      if(areEqual(bluetooth, rx_buffer,0 , 3)){
+      if(areEqual(bluetooth, rx_buffer,0 , 3) && accState){	//BT SECTION
 				checkBluetooth();
 				rx_index = 0;
 				return;
       }
 			
-			if(areEqual(other, rx_buffer,0 , 3)){
-				if(avTVinputState){
-					
-					
-					//pt2313_buffer[5]=93;
-					
-					HAL_GPIO_WritePin(switchRTDoutput_GPIO_Port, switchRTDoutput_Pin, GPIO_PIN_RESET);// back to hdmi
-					avTVinputState = false;
-				}else{
-					//pt2313_buffer[5]=64;
-					
-					avTVinputState = true;
-					HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_SET);
-					HAL_GPIO_WritePin(switchRTDoutput_GPIO_Port, switchRTDoutput_Pin, GPIO_PIN_SET);// set On Tv
-				}
+			if(areEqual(other, rx_buffer,0 , 3)){	//Other SECTION
+				checkOtherCommands();
 				rx_index = 0;
 				return;
       }
@@ -276,7 +258,326 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){//recive from uart1
 
     }
   }
+
+	
+		if(huart->Instance == USART2)
+		{
+			HAL_UART_Receive (&huart2, &rx2_data, 1, uart_timeout);
+			
+			if(rx2_index==0 ||rx2_data == 0x7E||rx2_data == 0xC7||rx2_data == 0x7C||rx2_data == 0x7E|| rx2_data == 0xFF || rx2_data == 0x3E || rx2_data == 0xEF|| rx2_data == 0xFB||rx2_data == 0xFE||rx2_data == 0x2E||rx2_data == 0xFC || rx2_data == 0x7F|| rx2_data == 0xFC||rx2_data == 0x1F)
+			{
+				for(int i=0; i<64; i++)
+				{
+					rx2_buffer[i]=0;
+					rx2_index=0;
+					
+				}
+				
+			}
+    
+				//if the charcter received is other than'enter' ascii 0x3f, save the data in buffer
+			if (rx2_data != 0x0A   )
+			{
+				
+				rx2_buffer[rx2_index++] = rx2_data;
+
+			}
+			else
+			{
+				//check 0-9 and + in 0 index of rx2 buffer for read incoming call
+				if(rx2_buffer[0] == 0x2B || rx2_buffer[0] == 0x30 || rx2_buffer[0] == 0x31 || rx2_buffer[0] == 0x32
+						|| rx2_buffer[0] == 0x33  || rx2_buffer[0] == 0x34  || rx2_buffer[0] == 0x35
+						|| rx2_buffer[0] == 0x36  || rx2_buffer[0] == 0x37  || rx2_buffer[0] == 0x38
+						|| rx2_buffer[0] == 0x39){
+						
+						HAL_UART_Transmit(&huart1, rx2_buffer, 22, uart_timeout);
+						
+					}
+				if(rx2_index>=1){
+					if(areEqual(rx2_buffer, rspnsReadyStatus, 0, 3)){
+						HAL_UART_Transmit(&huart1, rspnsReadyStatus, 3, uart_timeout);
+						rx2_index = 0;
+						return;
+					}
+					
+					if(areEqual(rx2_buffer, rspnsConnectingStatus, 0, 3)){
+						HAL_UART_Transmit(&huart1, rspnsConnectingStatus, 3, uart_timeout);
+						rx2_index = 0;
+						return;
+					}
+					
+					if(areEqual(rx2_buffer, rspnsConnectedStatus, 0, 3)){
+						HAL_UART_Transmit(&huart1, rspnsConnectedStatus, 3, uart_timeout);
+						rx2_index = 0;
+						return;
+					}
+					
+					if(areEqual(rx2_buffer, rspnsInCallStatus, 0, 3)){
+						HAL_UART_Transmit(&huart1, rspnsInCallStatus, 3, uart_timeout);
+						rx2_index = 0;
+						return;
+						
+						
+					}
+					
+					
+					
+					if(areEqual(rx2_buffer, rspnsOnCallStatus, 0, 3)){
+						HAL_UART_Transmit(&huart1, rspnsOnCallStatus, 3, uart_timeout);
+						rx2_index = 0;
+						return;
+					}
+					
+					
+					if(areEqual(rx2_buffer, rspnsOutCallStatus, 0, 3)){
+						HAL_UART_Transmit(&huart1, rspnsOutCallStatus, 3, uart_timeout);
+						rx2_index = 0;
+						return;
+					}
+					
+					if(areEqual(rx2_buffer, rspnsOutgoingCall, 0, 2)){
+						HAL_UART_Transmit(&huart1, rspnsOutgoingCall, 2, uart_timeout);
+						rx2_index = 0;
+						return;
+					}
+					
+					if(areEqual(rx2_buffer, rspnsMusicStart, 0, 2)){
+						HAL_UART_Transmit(&huart1, rspnsMusicStart, 2, uart_timeout);
+						rx2_index = 0;
+						return;
+					}
+					
+					if(areEqual(rx2_buffer, rspnsMusicResume, 0, 2)){
+						HAL_UART_Transmit(&huart1, rspnsMusicResume, 2, uart_timeout);
+						rx2_index = 0;
+						return;
+					}
+					
+					if(areEqual(rx2_buffer, rspnsMusicPause, 0, 2)){
+						HAL_UART_Transmit(&huart1, rspnsMusicPause, 2, uart_timeout);
+						rx2_index = 0;
+						return;
+					}
+					
+					if(areEqual(rx2_buffer, rspnsMusicStop, 0, 2)){
+						HAL_UART_Transmit(&huart1, rspnsMusicStop, 2, uart_timeout);
+						rx2_index = 0;
+						return;
+					}
+					
+					if(areEqual(rx2_buffer, rspnsEnterPairing, 0, 2)){
+						HAL_UART_Transmit(&huart1, rspnsEnterPairing, 2, uart_timeout);
+						rx2_index = 0;
+						return;
+					}
+					
+					if(areEqual(rx2_buffer, rspnsConnectToDevice, 0, 2)){
+						HAL_UART_Transmit(&huart1, rspnsConnectToDevice, 2, uart_timeout);
+						rx2_index = 0;
+						return;
+					}
+				}
+				
+				rx2_index = 0;
+			}
+    //return;
+		}
 }
+
+void checkBluetooth(){
+
+	static uint8_t settings[3]= {'s','t','n'};
+	static uint8_t call[3]= {'c','l','l'};
+	
+	uint8_t secondType[3];
+	
+	for (int i=4; i<7; i++){
+		secondType[i-4] = rx_buffer[i];
+	}
+	
+	if (areEqual(secondType, settings, 0,3)){
+		bluetoothSettings();
+		
+	}else if (areEqual(secondType, call, 0, 3)){
+		bluetoothCall();
+	}else{
+		bluetoothMusic();
+	}
+	
+	
+}
+	
+void bluetoothCall(){
+	
+	static uint8_t answer[3]= {'a','n','s'};
+	static uint8_t reject[3]= {'r','j','t'};
+	static uint8_t endCall[3]= {'e','n','d'};
+	static uint8_t redial[3]= {'r','d','l'};
+	static uint8_t checkStatus[3]= {'c','h','k'};
+	static uint8_t releaseHeldCall[3] = {'r', 'h', 'c'};
+	static uint8_t releaseActiveCall[3] = {'r', 'a', 'c'};
+	static uint8_t holdActiveCall[3] = {'h', 'a', 'c'};
+	static uint8_t audioTransfer[3] = {'a', 't', 'r'};
+	uint8_t secondType[14];
+	
+	for (int i=8; i<12; i++){
+		secondType[i-8] = rx_buffer[i];
+	}
+	
+	if(areEqual(checkStatus, secondType, 0, 3)){						//check Status call
+		
+		//custom_delay(700);
+		HAL_UART_Transmit(&huart2, "AT#CY\r", 6, uart_timeout);
+		
+		return;
+		
+	}else if(areEqual(reject, secondType, 0, 3)){			//reject
+		HAL_UART_Transmit(&huart2, "AT#CF\r", 6, uart_timeout);
+		return;
+		
+	}else if(areEqual(endCall, secondType, 0, 3)){		//end call
+		HAL_UART_Transmit(&huart2, "AT#CG\r", 6, uart_timeout);
+		return;
+		
+	}else if(areEqual(answer, secondType, 0, 3)){		//answer incoming call
+		HAL_UART_Transmit(&huart2, "AT#CE\r", 6, uart_timeout);
+		return;
+		
+	}else if(areEqual(redial, secondType, 0, 3)){			//redial
+		HAL_UART_Transmit(&huart2, "AT#CH\r", 6, uart_timeout);
+		return;
+		
+	}
+	else if(areEqual(audioTransfer, secondType, 0, 3)){			//Audio transfer
+		HAL_UART_Transmit(&huart2, "AT#CO\r", 6, uart_timeout);
+		return;
+	}
+	else if(areEqual(releaseHeldCall, secondType, 0,3)){  //release held call, reject waiting call
+		HAL_UART_Transmit(&huart2, "AT#CQ\r", 6, uart_timeout);
+		return;
+	}
+	else if(areEqual(releaseActiveCall, secondType, 0,3)){  //release active call, accept other call
+		HAL_UART_Transmit(&huart2, "AT#CR\r", 6, uart_timeout);
+		return;
+	}
+	else if(areEqual(holdActiveCall, secondType, 0,3)){  //hold active call, accept other call
+		HAL_UART_Transmit(&huart2, "AT#CS\r", 6, uart_timeout);
+		return;
+	}
+	else{//outgoing call
+		
+		for (int i=8; i<23; i++){
+			secondType[i-8] = rx_buffer[i];
+			
+		}
+		HAL_UART_Transmit(&huart2, "AT#CW", 5, uart_timeout);
+		HAL_UART_Transmit(&huart2, secondType, 14, uart_timeout );
+		HAL_UART_Transmit(&huart2, "\r", 1, uart_timeout);
+		
+		return;
+	}
+	
+	
+}
+
+void bluetoothMusic(){
+	{
+	static uint8_t decreaseVolume[3]= {'v','d','n'};
+	static uint8_t increaseVolume[3]= {'v','u','p'};
+	static uint8_t muteMic[3]= {'m','u','t'};
+	static uint8_t playPause[3] = {'p', 'p', 'p'};
+	static uint8_t stop[3] = {'s', 't', 'p'};
+	static uint8_t forward[3]= {'f','w','d'};
+	static uint8_t backward[3]= {'b','w','d'};
+	uint8_t secondType[3];
+	
+	for (int i=8; i<12; i++){
+		secondType[i-8] = rx_buffer[i];
+	}
+	
+	if(areEqual(decreaseVolume, secondType, 0, 3)){ //volume down
+		HAL_UART_Transmit(&huart2, "AT#VD\r", 6, uart_timeout);
+		return;
+	}
+	else if(areEqual(increaseVolume, secondType, 0, 3)){  //volume Up
+		HAL_UART_Transmit(&huart2, "AT#VU\r", 6, uart_timeout);
+		return;
+	}
+	else if(areEqual(muteMic, secondType, 0, 3)){	//TOGGLE MIC
+		HAL_UART_Transmit(&huart2, "AT#CM\r", 6, uart_timeout);
+		return;
+	}
+	else if(areEqual(playPause, secondType, 0, 3)){  //play , pause
+		HAL_UART_Transmit(&huart2, "AT#MA\r", 6, uart_timeout);
+		return;
+	}
+	else if(areEqual(stop, secondType, 0, 3)){  //stop
+		HAL_UART_Transmit(&huart2, "AT#MC\r", 6, uart_timeout);
+		return;
+	}
+	else if(areEqual(forward, secondType, 0, 3)){  //forward
+		HAL_UART_Transmit(&huart2, "AT#MD\r", 6, uart_timeout);
+		return;
+	}
+	else if(areEqual(backward, secondType, 0, 3)){ //backward
+		HAL_UART_Transmit(&huart2, "AT#ME\r", 6, uart_timeout);
+		return;
+	}
+	
+	}
+}
+void bluetoothSettings(){
+	
+	static uint8_t enterPairing[3]= {'p','o','n'}; 
+	static uint8_t cancelPairing[3]= {'p','o','f'}; 
+	static uint8_t enableAutoConn[3]= {'e','a','c'}; 
+	static uint8_t disableAutoConn[3]= {'d','a','c'}; 
+	static uint8_t enableAutoAnswer[3]= {'e','a','n'}; 
+	static uint8_t disableAutoAnswer[3]= {'d','a','n'}; 
+	uint8_t secondType[3];
+	
+	for (int i=8; i<12; i++){
+		secondType[i-8] = rx_buffer[i];
+	}
+	
+	//start and stop pairing mode
+	if(areEqual(secondType, enterPairing, 0,3)){
+		HAL_UART_Transmit(&huart2, "AT#CA\r", 6, uart_timeout);
+		
+		return;
+	}else if(areEqual(secondType, cancelPairing, 0,3)){
+		HAL_UART_Transmit(&huart2, "AT#CB\r", 6, uart_timeout);
+		HAL_UART_Transmit(&huart1, "Cancel pairing mode", 19, uart_timeout);
+		return;
+	}
+	
+	//enable and disable Auto connect mode
+	if(areEqual(secondType, enableAutoConn, 0,3)){
+		
+		HAL_UART_Transmit(&huart2, "AT#MG\r", 6, uart_timeout);
+		HAL_UART_Transmit(&huart1, "Enable Auto connect", 19, uart_timeout);
+		return;
+	}else if(areEqual(secondType, disableAutoConn, 0 , 3)){
+		HAL_UART_Transmit(&huart2, "AT#MH\r", 6, uart_timeout);
+		HAL_UART_Transmit(&huart1, "Disable Auto connect", 20, uart_timeout);
+		return;
+	}
+	
+	//enable and disable Auto Answer mode
+	if(areEqual(secondType, enableAutoAnswer, 0,3)){
+		
+		HAL_UART_Transmit(&huart2, "AT#MP\r", 6, uart_timeout);
+		HAL_UART_Transmit(&huart1, "Enable Auto Answer", 18, uart_timeout);
+		return;
+	}else if(areEqual(secondType, disableAutoAnswer, 0 , 3)){
+		HAL_UART_Transmit(&huart2, "AT#MQ\r", 6, uart_timeout);
+		HAL_UART_Transmit(&huart1, "Disable Auto Answer", 19, uart_timeout);
+		return;
+	}
+	
+	
+}
+
 
 
 bool areEqual(uint8_t arr1[], uint8_t arr2[], int i, int n){//compare two array
@@ -289,6 +590,7 @@ bool areEqual(uint8_t arr1[], uint8_t arr2[], int i, int n){//compare two array
     // If all elements were same.
     return true;
 }
+
 int arrayToInt(uint8_t mArr[]){ //for radio frq
   int b,o,n,m,k;
 	
@@ -309,7 +611,7 @@ int arrayToInt(uint8_t mArr[]){ //for radio frq
 		o = (mArr[1]-'0')*100;
 		n = (mArr[2]-'0')*10;
     m = mArr[3]-'0';
-    k = b+o+n+m;	
+    k = b+o+n+m;
 	}
   return k;
 }
@@ -359,6 +661,7 @@ bool checkDeviceI2cConnection(uint16_t DevAddress){//check I2c connection situat
 	}else return false;
 }
 
+
 bool reverseGearPinStateFunc (){
 	reverseGearPinState = HAL_GPIO_ReadPin(GPIOA,rearCameraInput_Pin); //check reverse gear state
 	if(reverseGearPinState == GPIO_PIN_RESET){
@@ -378,6 +681,16 @@ bool acciPinStateFunc (){
 		}
 }
 
+void getARMTemp_SetFanState(){
+	//temp = ((VroomTemp - Vsense) / avg_slope) + 25;
+	temp= (147.5 - ((75.0*3.5 *Vsense)) / 4096.0);
+	if(temp > 51 || headUnitCPU_HighTemp){
+		HAL_GPIO_WritePin(fan_GPIO_Port,fan_Pin, GPIO_PIN_SET);
+	}else if(temp < 47 && !headUnitCPU_HighTemp){
+		HAL_GPIO_WritePin(fan_GPIO_Port,fan_Pin, GPIO_PIN_RESET);
+	}
+}
+
 
 /* Private function prototypes -----------------------------------------------*/
 
@@ -386,6 +699,18 @@ bool acciPinStateFunc (){
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+
+/*void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
+	if(htim->Instance == TIM1){
+		if(shutDownTimer < 60){
+			shutDownTimer++;
+		}else
+			shutDownTimer = 0;
+	}
+	htim1.Init.Prescaler = 1099;     init for 1 second counting
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = 65514;
+}*/
 
 
 /* USER CODE END 0 */
@@ -431,15 +756,16 @@ int main(void)
   MX_NVIC_Init();
   /* USER CODE BEGIN 2 */
 	__HAL_IWDG_START(&hiwdg);
+	
 	HAL_ADC_Start_DMA(&hadc1,(uint32_t*) ADC_buffer, 2);
 	
-	//HAL_TIM_Base_Start_IT(&htim4);
+	//HAL_TIM_Base_Start_IT(&htim1); //statrt timer for counting turn off system
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1); //start timer2 channel_1 as pwm
 	TIM2->CCR1 = pwmValue;//pwm value from 0 to 65535
 
 //__HAL_UART_ENABLE_IT(&huart1,UART_IT_TC);
- __HAL_UART_ENABLE_IT(&huart1,UART_IT_RXNE);//ssssssssssssssssssssssssssssssssssssssssssssssssssss
- __HAL_UART_ENABLE_IT(&huart2,UART_IT_RXNE);
+	__HAL_UART_ENABLE_IT(&huart1,UART_IT_RXNE);//ssssssssssssssssssssssssssssssssssssssssssssssssssss
+	__HAL_UART_ENABLE_IT(&huart2,UART_IT_RXNE);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -448,12 +774,12 @@ int main(void)
 	
 	HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_RESET); //set headUnit Off for first time installing and on with first acc power on
 	HAL_GPIO_WritePin(muteOutput_GPIO_Port, muteOutput_Pin, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(fan_GPIO_Port,fan_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(power12V_GPIO_Port, power12V_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(fan_GPIO_Port,fan_Pin, GPIO_PIN_SET);
 	TIM2->CCR1 = 0;
-	custom_delay(1000);
+	HAL_Delay(1000);
 	HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_SET);
-	custom_delay(15000);
+	HAL_Delay(15000);
 	
 	/* check i2c Addresses 
 	for(int i = 0 ; i < 255 ;i++){
@@ -466,11 +792,12 @@ int main(void)
   while (1)
   {
 		
-		//if mcu was reseted this handle while loop for a little time
-		if(!resetDelay){
+		
+			HAL_IWDG_Refresh(&hiwdg);
+		
 		
 				//HAL_Delay(30000); //check watchDog
-			HAL_IWDG_Refresh(&hiwdg); //watch dog with down init 30 seconds need to reset
+			 //watch dog with down init 30 seconds need to reset
 
 			carLightLampPinState = HAL_GPIO_ReadPin(GPIOA,lampDetectInput_Pin); //check car light_lamp state9
 			reverseGearPinState = HAL_GPIO_ReadPin(GPIOA,rearCameraInput_Pin); //check reverse gear state
@@ -479,6 +806,7 @@ int main(void)
 			if(acciPinStateFunc())//GPIO_PIN_1
 			{
 				accState = true;
+				fanPermition = true;
 				
 				HAL_GPIO_WritePin(power12V_GPIO_Port, power12V_Pin, GPIO_PIN_SET);
 				HAL_GPIO_WritePin(powerUSBHub_GPIO_Port, powerUSBHub_Pin, GPIO_PIN_SET);
@@ -486,44 +814,56 @@ int main(void)
 				//HAL_GPIO_WritePin(amplifireOutput_GPIO_Port, amplifireOutput_Pin, GPIO_PIN_SET);
 				//HAL_GPIO_WritePin(fan_GPIO_Port,fan_Pin, GPIO_PIN_SET);
 				if(firstRun){ //if the acc swith off to on and the pt2313 will turn on and must set values	
-					__HAL_IWDG_START(&hiwdg);
+					HAL_UART_MspInit(&huart2);
 					HAL_GPIO_WritePin(standbySoundModuleAmpOutput_GPIO_Port, standbySoundModuleAmpOutput_Pin, GPIO_PIN_RESET);// must wait for noise gone
-					HAL_GPIO_WritePin(fan_GPIO_Port,fan_Pin, GPIO_PIN_SET);
 					TIM2->CCR1 = 0;
-					custom_delay(3000);
+					HAL_Delay(4000);
 					//if after delay acc state changed to off dont set sound values 
 					if(acciPinStateFunc()){
 						if(HAL_I2C_IsDeviceReady(&hi2c1,soundModuleI2CAddress,10	,1000) == HAL_OK){
 						HAL_I2C_Master_Transmit(&hi2c1,soundModuleI2CAddress,pt2313_buffer,8, i2c_timeout);
 						}
 					}
-					custom_delay(500);
+					HAL_Delay(500);
 					HAL_GPIO_WritePin(muteOutput_GPIO_Port, muteOutput_Pin, GPIO_PIN_RESET);
 					if(acciPinStateFunc()){
 						HAL_UART_Transmit (&huart1, (uint8_t*)"RUN", 3, uart_timeout);
 					}
 					firstRun = false;
 				}
-				
+				MCU_SHUTDOWN_TIMER = 0;
 			}else
 			{
 				accState = false;
 				HAL_GPIO_WritePin(muteOutput_GPIO_Port, muteOutput_Pin, GPIO_PIN_SET);
-				custom_delay(1000);
+				HAL_Delay(1000);
+				MCU_SHUTDOWN_TIMER++;
 				if(avCameraInputState){
 					avCameraInputState = false;
 					HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_SET);
-					custom_delay(4000); //waiting for switch mode av to hdmi
+					HAL_Delay(4000); //waiting for switch mode av to hdmi
 				}else 
 				{
 					HAL_GPIO_WritePin(power12V_GPIO_Port, power12V_Pin, GPIO_PIN_RESET);
 				}
-				
 				HAL_GPIO_WritePin(standbySoundModuleAmpOutput_GPIO_Port, standbySoundModuleAmpOutput_Pin, GPIO_PIN_SET);
 				HAL_GPIO_WritePin(antennaOutput_GPIO_Port, antennaOutput_Pin, GPIO_PIN_RESET);
-				//HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_RESET);
-				HAL_GPIO_WritePin(powerUSBHub_GPIO_Port, powerUSBHub_Pin, GPIO_PIN_RESET);
+				if(MCU_SHUTDOWN_TIMER > 10){
+					HAL_UART_MspDeInit(&huart2);
+					HAL_GPIO_WritePin(powerUSBHub_GPIO_Port, powerUSBHub_Pin, GPIO_PIN_RESET);
+				}
+				HAL_GPIO_WritePin(amplifireOutput_GPIO_Port, amplifireOutput_Pin, GPIO_PIN_RESET);
 				HAL_GPIO_WritePin(power12V_GPIO_Port, power12V_Pin, GPIO_PIN_RESET);
+				
+				if(MCU_SHUTDOWN_TIMER > 600 ){ //after 10 minutes fan will off
+					fanPermition = false;
+					HAL_GPIO_WritePin(fan_GPIO_Port,fan_Pin, GPIO_PIN_RESET);
+				}
+				
+				if(MCU_SHUTDOWN_TIMER > 108000 ){ //after 30 hour headunit will off
+					HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_RESET);
+					MCU_SHUTDOWN_TIMER = 0;
+				}
 				
 			}
 
@@ -556,17 +896,15 @@ int main(void)
 					TIM2->CCR1 = pwmValue;
 				}
 			}else firstRun = true;
-		}else{
-			HAL_IWDG_Refresh(&hiwdg);
-			custom_delay(2000);
-			resetDelay = false;
-		}
+		
 		
 	
 
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+		if(fanPermition){getARMTemp_SetFanState();}
+			
 		
   }
   /* USER CODE END 3 */
@@ -954,9 +1292,7 @@ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
-  while(1)
-  {
-  }
+  while(1){}
   /* USER CODE END Error_Handler_Debug */
 }
 
