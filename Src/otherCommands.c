@@ -34,7 +34,7 @@ void checkOtherCommands(){
 		int j = arrayToInt(secondType);
 		if (j == 1){
 			headUnitCPU_HighTemp = true;
-			HAL_GPIO_WritePin(fan_GPIO_Port,fan_Pin, GPIO_PIN_SET);
+			//HAL_GPIO_WritePin(fan_GPIO_Port,fan_Pin, GPIO_PIN_SET);
 			return;
 		}else{
 			headUnitCPU_HighTemp = false;

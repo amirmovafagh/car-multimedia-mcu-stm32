@@ -60,7 +60,10 @@ bool volatile radioAntenaState = false;
 bool volatile avCameraInputState = false;
 bool volatile accState = false;
 bool volatile firstRun = true;
+bool volatile firstOFF = true;
 bool volatile headUnitCPU_HighTemp = false;
+bool delaySwChannelOne = false;
+bool delaySwChannelTwo = false;
 
 
 //uint8_t buffer[8]={0x00, 0x00, 0x00, 0x63, 0x04, 0x23, 0x12, 0x15}; 
@@ -85,7 +88,7 @@ int MCU_SHUTDOWN_TIMER = 0;
 bool fanPermition = true;
 bool fanState = true;
 uint8_t rx_data = 0;
-uint8_t rx_buffer[128];
+uint8_t rx_buffer[64];
 
 uint8_t rx2_data=0;
 uint8_t rx2_buffer[64];
@@ -161,6 +164,7 @@ bool checkDeviceI2cConnection(uint16_t DevAddress);
 bool reverseGearPinStateFunc (void);
 bool acciPinStateFunc (void);
 void getARMTemp_SetFanState(void);
+void changeChannelDelay (int channel);
 
 
 void custom_delay(uint32_t milliseconds) {
@@ -181,17 +185,17 @@ void custom_delay(uint32_t milliseconds) {
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){//recive from uart1
 	
-  if( huart->Instance == USART1 )
+  if(huart->Instance == USART1  )
   {    
     HAL_UART_Receive (&huart1, &rx_data, 1, uart_timeout);
     if(rx_index==0 || rx_index==-1|| rx_index==0xFF)
     {
-      for(int i=0; i<128; i++)
+      for(int i=0; i<64; i++)
       {
         rx_buffer[i]=0;
 				
       }
-			rx_index==0;
+			
     }
       //if the charcter received is other than'?' ascii 0x3f, save the data in buffer
     if (rx_data != 0x3f)
@@ -200,9 +204,9 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){//recive from uart1
     }
     else
     {
-            
+     if(accState){     
       //VOICE CHANNEL SWITCHING
-      if(areEqual(mode, rx_buffer,0,3) && accState){//sound module is on checked with acc state
+      if(areEqual(mode, rx_buffer,0,3) ){//sound module is on checked with acc state
         checkMode();
 				rx_index = 0;
 				return;
@@ -210,12 +214,12 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){//recive from uart1
       }
       
       
-      if(areEqual(audio, rx_buffer,0 , 3) && accState){  //AUDIO SECTION
+      if(areEqual(audio, rx_buffer,0 , 3) ){  //AUDIO SECTION
         checkAudio();
 				rx_index = 0;
 				return;
       }
-			if(areEqual(radio, rx_buffer,0 , 3) && accState){  //Radio SECTION
+			if(areEqual(radio, rx_buffer,0 , 3) ){  //Radio SECTION
 				checkRadio();
 				rx_index = 0;
 				return;
@@ -223,20 +227,13 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){//recive from uart1
       
       
 			
-      if(areEqual(bluetooth, rx_buffer,0 , 3) && accState){	//BT SECTION
+      if(areEqual(bluetooth, rx_buffer,0 , 3) ){	//BT SECTION
 				checkBluetooth();
 				rx_index = 0;
 				return;
       }
-			
-			if(areEqual(other, rx_buffer,0 , 3)){	//Other SECTION
-				checkOtherCommands();
-				rx_index = 0;
-				return;
-      }
-      
 			//enable and disable debugmode
-      if(areEqual(debug, rx_buffer,0 , 3)){
+      if(areEqual(debug, rx_buffer,0 , 3) ){
 				if(debugState){
 					debugState = false;
 					HAL_UART_Transmit (&huart1, (uint8_t*)"dOff", 4, uart_timeout);
@@ -247,12 +244,13 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){//recive from uart1
 				rx_index = 0;
 				return;
       }
-      
-      
-			//RTD SECTION
-      /*if(areEqual(rtd, rx_buffer,0 , 3)){
-        
-      }*/
+		}
+			
+			if(areEqual(other, rx_buffer,0 , 3)){	//Other SECTION
+				checkOtherCommands();
+				rx_index = 0;
+				return;
+      }
 
       rx_index = 0;
 
@@ -260,11 +258,11 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){//recive from uart1
   }
 
 	
-		if(huart->Instance == USART2)
+		if(huart->Instance == USART2 )
 		{
-			HAL_UART_Receive (&huart2, &rx2_data, 1, uart_timeout);
+			HAL_UART_Receive (&huart2, &rx2_data, 1,uart_timeout);
 			
-			if(rx2_index==0 ||rx2_data == 0x7E||rx2_data == 0xC7||rx2_data == 0x7C||rx2_data == 0x7E|| rx2_data == 0xFF || rx2_data == 0x3E || rx2_data == 0xEF|| rx2_data == 0xFB||rx2_data == 0xFE||rx2_data == 0x2E||rx2_data == 0xFC || rx2_data == 0x7F|| rx2_data == 0xFC||rx2_data == 0x1F)
+			if(rx2_index > 50 ||rx2_buffer[60]!=0x00 || rx2_index==0 ||rx2_data == 0x7E||rx2_data == 0xC7||rx2_data == 0x7C||rx2_data == 0x7E|| rx2_data == 0xFF || rx2_data == 0x3E || rx2_data == 0xEF|| rx2_data == 0xFB||rx2_data == 0xFE||rx2_data == 0x2E||rx2_data == 0xFC || rx2_data == 0x7F|| rx2_data == 0xFC||rx2_data == 0x1F)
 			{
 				for(int i=0; i<64; i++)
 				{
@@ -276,7 +274,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){//recive from uart1
 			}
     
 				//if the charcter received is other than'enter' ascii 0x3f, save the data in buffer
-			if (rx2_data != 0x0A   )
+			if (rx2_data != 0x0A && accState)
 			{
 				
 				rx2_buffer[rx2_index++] = rx2_data;
@@ -684,10 +682,28 @@ bool acciPinStateFunc (){
 void getARMTemp_SetFanState(){
 	//temp = ((VroomTemp - Vsense) / avg_slope) + 25;
 	temp= (147.5 - ((75.0*3.5 *Vsense)) / 4096.0);
-	if(temp > 51 || headUnitCPU_HighTemp){
+	if(temp > 75 || headUnitCPU_HighTemp){
 		HAL_GPIO_WritePin(fan_GPIO_Port,fan_Pin, GPIO_PIN_SET);
-	}else if(temp < 47 && !headUnitCPU_HighTemp){
+	}else if(temp < 70 && !headUnitCPU_HighTemp){
 		HAL_GPIO_WritePin(fan_GPIO_Port,fan_Pin, GPIO_PIN_RESET);
+	}
+}
+
+void changeChannelDelay(int channel){
+	if(channel == 1){
+		delaySwChannelTwo = false;
+		if(!delaySwChannelOne){
+			delaySwChannelOne = true;
+			TIM2->CCR1 = 0;
+			HAL_Delay(3000);
+		}
+	}else{
+		delaySwChannelOne = false;
+		if(!delaySwChannelTwo){
+			delaySwChannelTwo = true;
+			TIM2->CCR1 = 0;
+			HAL_Delay(2000);
+		}
 	}
 }
 
@@ -802,21 +818,26 @@ int main(void)
 			carLightLampPinState = HAL_GPIO_ReadPin(GPIOA,lampDetectInput_Pin); //check car light_lamp state9
 			reverseGearPinState = HAL_GPIO_ReadPin(GPIOA,rearCameraInput_Pin); //check reverse gear state
 			acciPinState = HAL_GPIO_ReadPin(GPIOA,accInput_Pin); //check Switch On state
-
+			
+		
 			if(acciPinStateFunc())//GPIO_PIN_1
 			{
-				accState = true;
+				__HAL_UART_ENABLE(&huart2);
 				fanPermition = true;
+				MCU_SHUTDOWN_TIMER = 0;
 				
 				HAL_GPIO_WritePin(power12V_GPIO_Port, power12V_Pin, GPIO_PIN_SET);
 				HAL_GPIO_WritePin(powerUSBHub_GPIO_Port, powerUSBHub_Pin, GPIO_PIN_SET);
-				HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_SET);				
+				HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_SET);
+				
+				accState = true;				
 				//HAL_GPIO_WritePin(amplifireOutput_GPIO_Port, amplifireOutput_Pin, GPIO_PIN_SET);
 				//HAL_GPIO_WritePin(fan_GPIO_Port,fan_Pin, GPIO_PIN_SET);
 				if(firstRun){ //if the acc swith off to on and the pt2313 will turn on and must set values	
-					HAL_UART_MspInit(&huart2);
+					
+					
 					HAL_GPIO_WritePin(standbySoundModuleAmpOutput_GPIO_Port, standbySoundModuleAmpOutput_Pin, GPIO_PIN_RESET);// must wait for noise gone
-					TIM2->CCR1 = 0;
+					TIM2->CCR1 = pwmValue;
 					HAL_Delay(4000);
 					//if after delay acc state changed to off dont set sound values 
 					if(acciPinStateFunc()){
@@ -828,53 +849,69 @@ int main(void)
 					HAL_GPIO_WritePin(muteOutput_GPIO_Port, muteOutput_Pin, GPIO_PIN_RESET);
 					if(acciPinStateFunc()){
 						HAL_UART_Transmit (&huart1, (uint8_t*)"RUN", 3, uart_timeout);
+						HAL_Delay(500);
+						HAL_UART_Transmit (&huart1, (uint8_t*)"RUN", 3, uart_timeout);
 					}
+					
 					firstRun = false;
 				}
-				MCU_SHUTDOWN_TIMER = 0;
+				
 			}else
 			{
+				__HAL_UART_DISABLE(&huart2);
 				accState = false;
+				firstRun = true;
 				HAL_GPIO_WritePin(muteOutput_GPIO_Port, muteOutput_Pin, GPIO_PIN_SET);
 				HAL_Delay(1000);
 				MCU_SHUTDOWN_TIMER++;
-				if(avCameraInputState){
+				if(MCU_SHUTDOWN_TIMER > 4){
+					
+					if(avCameraInputState || avTVinputState){
 					avCameraInputState = false;
+					avTVinputState = false;
 					HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_SET);
 					HAL_Delay(4000); //waiting for switch mode av to hdmi
-				}else 
-				{
-					HAL_GPIO_WritePin(power12V_GPIO_Port, power12V_Pin, GPIO_PIN_RESET);
-				}
-				HAL_GPIO_WritePin(standbySoundModuleAmpOutput_GPIO_Port, standbySoundModuleAmpOutput_Pin, GPIO_PIN_SET);
-				HAL_GPIO_WritePin(antennaOutput_GPIO_Port, antennaOutput_Pin, GPIO_PIN_RESET);
-				if(MCU_SHUTDOWN_TIMER > 10){
-					HAL_UART_MspDeInit(&huart2);
+					}
+					HAL_GPIO_WritePin(standbySoundModuleAmpOutput_GPIO_Port, standbySoundModuleAmpOutput_Pin, GPIO_PIN_SET);
+					HAL_GPIO_WritePin(antennaOutput_GPIO_Port, antennaOutput_Pin, GPIO_PIN_RESET);
+					HAL_GPIO_WritePin(amplifireOutput_GPIO_Port, amplifireOutput_Pin, GPIO_PIN_RESET);
 					HAL_GPIO_WritePin(powerUSBHub_GPIO_Port, powerUSBHub_Pin, GPIO_PIN_RESET);
-				}
-				HAL_GPIO_WritePin(amplifireOutput_GPIO_Port, amplifireOutput_Pin, GPIO_PIN_RESET);
-				HAL_GPIO_WritePin(power12V_GPIO_Port, power12V_Pin, GPIO_PIN_RESET);
+					HAL_GPIO_WritePin(power12V_GPIO_Port, power12V_Pin, GPIO_PIN_RESET);
+					if(firstOFF){
+						firstOFF = false;
+						//HAL_UART_Transmit (&huart1, (uint8_t*)"OFF", 3, uart_timeout);    <ijad tadakhol darsurate hamzamani daryaft az Rx>
+					}
 				
-				if(MCU_SHUTDOWN_TIMER > 600 ){ //after 10 minutes fan will off
-					fanPermition = false;
-					HAL_GPIO_WritePin(fan_GPIO_Port,fan_Pin, GPIO_PIN_RESET);
-				}
+					if(MCU_SHUTDOWN_TIMER > 6 && MCU_SHUTDOWN_TIMER < 10){
+						
+						HAL_UART_Transmit (&huart1, (uint8_t*)"OFF", 3, uart_timeout);
+					}
 				
-				if(MCU_SHUTDOWN_TIMER > 108000 ){ //after 30 hour headunit will off
-					HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_RESET);
-					MCU_SHUTDOWN_TIMER = 0;
-				}
+				
+					if(MCU_SHUTDOWN_TIMER > 108000 ){ //after 30 hour headunit will off
+						fanPermition = false;
+						HAL_GPIO_WritePin(fan_GPIO_Port,fan_Pin, GPIO_PIN_RESET);
+						HAL_GPIO_WritePin(headunitOutput_GPIO_Port, headunitOutput_Pin, GPIO_PIN_RESET);
+						MCU_SHUTDOWN_TIMER = 0;
+					}
+					
+				}	
+				
 				
 			}
 
 			if(accState){
+				firstOFF = true;
+				
 				if( !reverseGearPinStateFunc() && !avTVinputState)
 				{
 					avCameraInputState = false;
 					HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_SET);
+					changeChannelDelay(1);
 				}else{
 					avCameraInputState = true;
 					HAL_GPIO_WritePin(accRTDoutput_GPIO_Port, accRTDoutput_Pin, GPIO_PIN_RESET); // with 0 switch will be on and set on AV camera input
+					changeChannelDelay(2);
 				}
 				
 				if(avTVinputState){
@@ -888,6 +925,10 @@ int main(void)
 						HAL_GPIO_WritePin(switchRTDoutput_GPIO_Port, switchRTDoutput_Pin, GPIO_PIN_RESET); //Switch from tv to camera	
 					}
 				}
+				
+				
+				
+				
 				if(carLightLampPinState == GPIO_PIN_RESET){ //check car light state and change the brightness
 					carLightState = true;
 					TIM2->CCR1 = pwmValueLightOn;
@@ -895,7 +936,8 @@ int main(void)
 					carLightState = false;
 					TIM2->CCR1 = pwmValue;
 				}
-			}else firstRun = true;
+				
+			}
 		
 		
 	
@@ -907,7 +949,7 @@ int main(void)
 			
 		
   }
-  /* USER CODE END 3 */
+	/* USER CODE END 3 */
 }
 
 /**
