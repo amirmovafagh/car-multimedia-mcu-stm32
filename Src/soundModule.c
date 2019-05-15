@@ -21,14 +21,14 @@ void checkMode(){
 			
 			HAL_I2C_Master_Transmit(&hi2c1,soundModuleI2CAddress,pt2313_buffer,8, i2c_timeout);
 			if(debugState){
-				HAL_UART_Transmit (&huart1, (uint8_t*)"mod", 3, uart_timeout);
+				HAL_UART_Transmit_IT (&huart1, (uint8_t*)"mod", 3);
 			}
 			return;
 		
 		
 		}else{ 
 			if(debugState){
-				HAL_UART_Transmit (&huart1, (uint8_t*)"modProb", 7, uart_timeout);
+				HAL_UART_Transmit_IT (&huart1, (uint8_t*)"modProb", 7);
 			}
 		}
 		
@@ -43,7 +43,7 @@ void checkAudio(){                         //Audio Module settings
 			secondTypeAUDIO[i-4]=rx_buffer[i];
 		}
 		
-		if(secondTypeAUDIO[10] == 0x00 && secondTypeAUDIO[7] == 0x00){
+		if(secondTypeAUDIO[6] == 0x00 && secondTypeAUDIO[10] == 0x00 && secondTypeAUDIO[7] == 0x00 && secondTypeAUDIO[8] == 0x00 && secondTypeAUDIO[9] == 0x00 && secondTypeAUDIO[15] == 0x00 && secondTypeAUDIO[19] == 0x00){
 			pt2313_buffer[0] = arrayToInt_withIndex_soundValues(secondTypeAUDIO, 0); //volume
 			//for(int i = 0 ; i<30000 ; i++){}
 			
@@ -66,5 +66,5 @@ void checkAudio(){                         //Audio Module settings
 				HAL_GPIO_WritePin(muto_GPIO_Port,muto_Pin, 0);
 			}*/
 			
-	}else HAL_UART_Transmit (&huart1, (uint8_t*)"audProb", 7, uart_timeout);
+	}else HAL_UART_Transmit_IT (&huart1, (uint8_t*)"audProb", 7);
 }

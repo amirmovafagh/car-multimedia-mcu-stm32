@@ -23,6 +23,7 @@ extern uint8_t audio[3];
 extern uint8_t radio[3];
 extern uint8_t bluetooth[3];
 extern uint8_t debug[3];
+extern bool accState;
 extern bool debugState;
 extern double Vsense;
 
